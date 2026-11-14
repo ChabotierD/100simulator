@@ -1144,9 +1144,8 @@ function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.
 const A = {ctx:null, sound:true, voice:true, he:null, vf:null, vm:null};
 function initAudio(){
   try{
-    if(!A.warm && window.speechSynthesis){ A.warm = true; const w = new SpeechSynthesisUtterance(' '); w.volume = 0; w.lang = 'he-IL'; speechSynthesis.speak(w); }   // wakes the phone's voice engine so the first line is not late
     if(navigator.audioSession) navigator.audioSession.type = 'playback';       // iPhone: keep playing with the ringer switch on silent
-    if(!A.ctx){ const C = window.AudioContext || window.webkitAudioContext; if(C){ try{ A.ctx = new C({latencyHint:'interactive'}); }catch(e){ A.ctx = new C(); } } }
+    if(!A.ctx){ const C = window.AudioContext || window.webkitAudioContext; if(C) A.ctx = new C(); }
     if(A.ctx && A.ctx.state!=='running') A.ctx.resume();
     if(A.ctx && !A.unlocked){ const b = A.ctx.createBuffer(1, 1, 22050), s = A.ctx.createBufferSource(); s.buffer = b; s.connect(A.ctx.destination); s.start(0); A.unlocked = true; }
   }catch(e){}
