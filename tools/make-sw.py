@@ -59,7 +59,7 @@ self.addEventListener('fetch', e => {
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
     if (req.mode === 'navigate') {                          // the page itself: newest when online, saved copy when not
-      try { const fresh = await fetch(req); if (fresh.ok) cache.put('./', fresh.clone()); return fresh; }
+      try { const fresh = await fetch(req.url, {cache: 'no-store', credentials: 'same-origin'}); if (fresh.ok) cache.put('./', fresh.clone()); return fresh; }
       catch (err) { return (await cache.match('./')) || (await cache.match('./index.html')) || Response.error(); }
     }
     const hit = await cache.match(req, {ignoreSearch: true});

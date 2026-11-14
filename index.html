@@ -305,6 +305,10 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 #unitCard .uca{display:flex;gap:8px;margin-top:12px}
 #unitCard .uca button{flex:1;padding:9px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:inherit;font:inherit;font-weight:700}
 #unitCard .uca .pri{background:var(--brand);border-color:var(--brand);color:#04101f}
+#unitCard .uca .rel{border-color:rgba(255,181,61,.6);color:var(--accent)}
+.irow .iu{background:rgba(47,125,255,.12);border:1px solid rgba(90,166,255,.4);border-radius:5px;padding:0 6px;color:#cfe1f8;font:inherit;font-weight:700;font-size:12px;cursor:pointer}
+.irow .iu:hover{border-color:var(--brand)}
+#unitCard .ucnote{margin:8px 0 0;font-size:12px;color:var(--muted)}
 #unitCard .bar{height:4px;background:linear-gradient(90deg,#ff2b3d 0 50%,#2f7dff 50% 100%)}
 #unitCard .av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:13px;background:linear-gradient(160deg,#1d3d74,#0e1f3d);border:1px solid rgba(90,166,255,.4);color:#cfe1f8;flex:none}
 #unitCard, #unitCard *{animation:none!important}   /* the card stays still */
@@ -1981,12 +1985,13 @@ function renderIncs(){
   box.innerHTML = S.incs.map((inc,i) => {
     const st = inc.arrivedAt==null ? 'כוחות בדרך' : 'כוחות בזירה', want = (inc.missing||[]).filter(k => !inc.crews.includes(k));
     return `<div class="irow${want.length?' want':''}"><div class="ii"><b>${esc(inc.sc.t)}</b>
-      <span>${esc(inc.c.hood)} · ${st} · ${esc(inc.units.map(u => u.cs).join(', '))}${want.length ? ' · <em>הכוח מבקש ' + want.map(k => EXT[k].crew).join(' ו') + '</em>' : ''}</span></div>
+      <span>${esc(inc.c.hood)} · ${st} · ${inc.units.map(u => `<button type="button" class="iu" data-iu="${S.units.indexOf(u)}" title="פרטי הצוות${inc.units.length > 1 ? ' ושחרור מהאירוע' : ''}">${esc(u.cs)}</button>`).join(' ')}${want.length ? ' · <em>הכוח מבקש ' + want.map(k => EXT[k].crew).join(' ו') + '</em>' : ''}</span></div>
       <div class="ib">${Object.keys(EXT).map(k => `<button type="button" data-ic="${i}:${k}" aria-pressed="${inc.crews.includes(k)}" title="${EXT[k].crew}">${k}</button>`).join('')}
       <button type="button" class="rf" data-ir="${i}">תגבור</button></div></div>`;
   }).join('');
 }
 $('#incs').addEventListener('click', e => {
+  const iu = e.target.closest('[data-iu]'); if(iu){ unitCard(S.units[+iu.dataset.iu]); return; }
   const a = e.target.closest('[data-ic]');
   if(a){ const p = a.dataset.ic.split(':'), inc = S.incs[+p[0]]; if(inc) addCrew(inc, p[1]); if(S.active) renderCall(); return; }
   const r = e.target.closest('[data-ir]');
@@ -2026,11 +2031,26 @@ function unitCard(u){
   $('#ucBox').innerHTML = (u.state==='enroute' && u.urgent ? '<div class="bar"></div>' : '') + `<div class="uch">${UICON[u.kind]}<div><b>${esc(u.cs)}</b><div class="t">${esc(u.type)} · ${esc(S.city.radio)}</div></div><span class="stx ${u.state}">${lab[u.state]}</span></div>
     <div class="ucb"><h4>צוות</h4><div class="crew">${u.crew.map(m => `<div><span class="av">${esc(m.name.charAt(0))}</span><span class="rk">${m.rank}</span><span>${esc(m.name)}</span><span class="role">${esc(m.role)}</span></div>`).join('')}</div>
     <h4>משימה</h4>${ev}
-    <div class="uca">${u.state==='free' ? `<button type="button" class="pri" data-ucsel>${u.sel ? 'בטל סימון' : 'סמן לשיגור'}</button>` : ''}<button type="button" data-ucx>סגור</button></div></div>`;
+    <div class="uca">${u.state==='free' ? `<button type="button" class="pri" data-ucsel>${u.sel ? 'בטל סימון' : 'סמן לשיגור'}</button>` : ''}${canRelease(u) ? `<button type="button" class="rel" data-ucrel>שחרור מהאירוע</button>` : ''}<button type="button" data-ucx>סגור</button></div>
+    ${u.inc && !canRelease(u) && u.inc.units.length===1 ? '<p class="ucnote">כוח יחיד באירוע. אי אפשר לשחרר אותו לפני סיום הטיפול.</p>' : ''}</div>`;
   $('#unitCard').classList.remove('hidden');
 }
 function pathLen(u){ let d = 0, x = u.x, y = u.y; for(const p of u.path){ d += Math.hypot(p.x-x, p.y-y); x = p.x; y = p.y; } return d; }
+// A unit can be sent back to patrol while at least one other unit stays on the incident.
+const canRelease = u => !!(u && u.inc && S.incs.includes(u.inc) && u.inc.units.length > 1);
+function releaseUnit(u){
+  if(!canRelease(u)) return;
+  const inc = u.inc; inc.units.splice(inc.units.indexOf(u), 1);
+  let best = 0, bd = 1e9; S.nodes.forEach((n,i) => { const d = Math.hypot(n.x - u.x, n.y - u.y); if(d < bd){ bd = d; best = i; } });
+  u.state = 'free'; u.inc = null; u.path = []; u.urgent = false; u.sel = false; u.node = best;
+  inc.units.forEach((x,i) => x.slot = i);
+  const m = rname(u) + ' כאן ' + S.ctl + ', השתחרר מהאירוע. חזור לסיור.';
+  log('ops', S.ctl, m); radioSay(m, {g:S.op.g});
+  setTimeout(() => { if(S && !S.over){ const r = S.ctl + ' ' + rname(u) + ', קיבלתי. חוזר לסיור.'; log('radio', rname(u), r); radioTx(1.1, null, u); } }, 2200);
+  renderUnits(); renderIncs(); if(S.active) renderCall();
+}
 $('#unitCard').addEventListener('click', e => {
+  if(e.target.closest('[data-ucrel]') && cardU){ releaseUnit(cardU); unitCard(null); return; }
   if(e.target.closest('[data-ucsel]') && cardU){ cardU.sel = !cardU.sel; renderUnits(); if(S.active){ S.active.hint = ''; renderCall(); } unitCard(null); return; }
   if(e.target.closest('[data-ucx]') || e.target.id==='unitCard') unitCard(null);
 });
@@ -2496,7 +2516,11 @@ $('#btnMute').addEventListener('click', () => {
 
 /* ================= BOOT ================= */
 renderStart(); loadVoices();
-try{ if('serviceWorker' in navigator && location.protocol==='https:' && window.top===window) navigator.serviceWorker.register('sw.js').catch(() => {}); }catch(e){}
+try{ if('serviceWorker' in navigator && location.protocol==='https:' && window.top===window) navigator.serviceWorker.register('sw.js').catch(() => {});
+  // a new version took over: on the start screen, reload once so the player sees it (never in the middle of a shift)
+  if('serviceWorker' in navigator && navigator.serviceWorker.controller){ let done = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if(!done && (!S || S.over)){ done = true; location.reload(); } }); }
+}catch(e){}
 try{ document.fonts.ready.then(() => { mapLayer = null; }); }catch(e){}
 try{ if(window.speechSynthesis) speechSynthesis.onvoiceschanged = loadVoices; }catch(e){}
 </script>
