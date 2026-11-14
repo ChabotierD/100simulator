@@ -1258,7 +1258,8 @@ function radioTx(dur, siren, unit){
 // Station file names: netanya, kfarsaba, pt, rishon, telaviv, ramatgan, holon, haifa, hadera, zevulun. Units: 401 402 403 404 411 412 11.
 // The יס״מ goes by name alone, one opener per district: 'open|מרכז|יס״מ', 'open|אביב|יס״מ', 'open|חוף|יס״מ'.
 const STATION_FILE = {'נתניה':'netanya','סבא':'kfarsaba','פ״ת':'pt','ראשון':'rishon','אביב':'telaviv','גן':'ramatgan','חולון':'holon','חיפה':'haifa','חדרה':'hadera','זבולון':'zevulun'};
-const CLIPS = {'open|נתניה|401':'voice/a401.mp3', 'rep|arrive-f|מרכז':'voice/a402.mp3'};
+const CLIPS = {'rep|arrive-f|מרכז':'voice/a402.mp3'};
+['401','402','403','404','411','412','11'].forEach(cs => CLIPS['open|נתניה|' + cs] = 'voice/netanya-' + cs + '.mp3');   // Netanya station, recorded
 ['401','402','403','404','411','412','11'].forEach(cs => CLIPS['open|סבא|' + cs] = 'voice/kfarsaba-' + cs + '.mp3');   // Kfar Saba station, recorded
 const clipBuf = {}; let clipChain = Promise.resolve();
 function playNow(buf, vol, loop){ try{
