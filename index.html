@@ -1352,7 +1352,7 @@ function startShift(district, city){
   renderIncs(); sizeCanvas(); renderQueue(); renderCall(); renderUnits(); header(); keepAwake(true);
   log('ops', S.ctl, 'כל כוחות ' + city.radio + ' כאן ' + S.ctl + ', תחילת ' + S.shift.name + '. בדיקת קשר.');
   log('radio', rname(S.units[0]), S.ctl + ' ' + rname(S.units[0]) + ', שומע היטב.');
-  startCine({intro:true, media:'op-' + S.op.g + '.mp4', loop:true, dur:4.2, kicker:district.name + ' · ' + city.sub, title:S.shift.name + ' · ' + city.name,
+  startCine({intro:true, media:'op-' + S.op.g + '.mp4', mediaV:'op-' + S.op.g + '-v.mp4', loop:true, dur:4.2, kicker:district.name + ' · ' + city.sub, title:S.shift.name + ' · ' + city.name,
     sub:(S.op.g==='f' ? 'מוקדנית ' : 'מוקדן ') + S.op.name + ' · ' + S.units.length + ' צוותים בגזרה', foot:'הקו הראשון מצלצל בעוד רגע'});
   ambience(true);
   lastT = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
@@ -1763,7 +1763,7 @@ function renderCall(){
   const c = S.active, box = $('#call');
   $('#game').classList.toggle('busy', !!c);
   $('#callLine').textContent = (c ? 'קו ' + c.line + ' · ' : '') + (S.op.g==='f' ? 'מוקדנית ' : 'מוקדן ') + S.op.name;
-  if(!c){ box.innerHTML = '<div class="idle"><video class="idlevid" src="op-' + S.op.g + '.mp4" autoplay muted loop playsinline></video><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><b>המוקד מאזין</b><span>כשקו מצלצל, לוחצים על ״מענה״</span></div>'; return; }
+  if(!c){ box.innerHTML = '<div class="idle"><video class="idlevid" src="op-' + S.op.g + (compact && !land ? '-v' : '') + '.mp4" autoplay muted loop playsinline></video><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><b>המוקד מאזין</b><span>כשקו מצלצל, לוחצים על ״מענה״</span></div>'; return; }
   const names = {caller:'מתקשר', op:esc(S.op.name), fx:''};
   const tr = c.lines.map(l => `<div class="ln ${l.who}"><b>${names[l.who]}</b><span class="tx">${esc(l.text)}</span><time>${(l.ts||'').slice(3)}</time></div>`).join('');
   const exact = c.rev.addr && !c.sc.a, sent = !!(c.inc && S.incs.includes(c.inc));
@@ -1858,7 +1858,7 @@ function sizeCanvas(){
   CW = Math.max(200, r.width); CH = Math.max(160, r.height);
   cv.width = Math.round(CW*dpr); cv.height = Math.round(CH*dpr); cx.setTransform(dpr,0,0,dpr,0,0); mapLayer = null;
 }
-window.addEventListener('resize', () => { layout(); if(S && !S.over){ sizeCanvas(); draw(); if(CINE){ sizeCine(); if(CINE.media) ccv.classList.toggle('hidden', !CINE.narrow); } } });
+window.addEventListener('resize', () => { layout(); if(S && !S.over){ sizeCanvas(); draw(); if(CINE){ sizeCine(); if(CINE.media) ccv.classList.toggle('hidden', !CINE.narrow || !!CINE.vert); } } });
 const PX = x => 34 + x/100*(CW-68), PY = y => 26 + y/100*(CH-64);
 function box(x, y, w, h, r){ cx.beginPath(); if(cx.roundRect) cx.roundRect(x,y,w,h,r); else cx.rect(x,y,w,h); }
 
@@ -2024,14 +2024,17 @@ let cineImgs = {}, cineFor = '';
 function loadCineImgs(){
   const city = DISTRICTS[selD].cities[selC].name, v = (CINE_VAR[city]||{})[selShift] || {};
   if(cineFor !== city + selShift){ cineFor = city + selShift; cineImgs = {}; }
+  const set = id => [1,2,3,4].map(i => { const im = new Image(); im.src = 'cine/' + id + '-' + i + '.jpg'; return im; });
   Object.keys(CINE_FRAMES).forEach(k => { if(cineImgs[k]) return; const id = v[CINE_FRAMES[k][0]] || CINE_FRAMES[k][0];
-    cineImgs[k] = [1,2,3,4].map(i => { const im = new Image(); im.src = 'cine/' + id + '-' + i + '.jpg'; return im; }); });
+    cineImgs[k] = {w:set(id), v:set(id + '-v')}; });          // wide for computers and sideways phones, upright for phones held upright
 }
-function cineFrames(title){ const a = cineImgs[title]; return a && a.every(im => im.complete && im.naturalWidth) ? a : null; }
+const uprightNow = () => window.innerWidth / window.innerHeight < 1.3;
+const ready = a => a && a.every(im => im.complete && im.naturalWidth) ? a : null;
+function cineFrames(title){ const a = cineImgs[title]; if(!a) return null; return (uprightNow() && ready(a.v)) || ready(a.w); }
 function drawFrames(c){
   const g = cctx, w = c.w, h = c.h, t = c.t, n = c.frames.length, seg = c.dur/n, i = Math.min(n-1, Math.floor(t/seg)), lt = t - i*seg;
   const put = (im, z, a, sh) => { const r = fitRect(c, im.naturalWidth, im.naturalHeight, z), f = fitRect(c, im.naturalWidth, im.naturalHeight, 1);
-    g.save(); if(c.narrow){ g.beginPath(); g.rect(f.x, f.y, f.w, f.h); g.clip(); }                  // the push-in stays inside the picture's frame
+    g.save(); if(c.narrow && !c.vert){ g.beginPath(); g.rect(f.x, f.y, f.w, f.h); g.clip(); }                  // the push-in stays inside the picture's frame
     g.globalAlpha = a; g.drawImage(im, r.x + (Math.random()-0.5)*sh, r.y + (Math.random()-0.5)*sh, r.w, r.h); g.restore(); };
   g.fillStyle = '#000'; g.fillRect(0,0,w,h);
   backdrop(c, c.frames[Math.min(n-1, Math.floor(t/seg))]);
@@ -2072,6 +2075,8 @@ function startCine(o){
   if(!S || !$('#optCine').checked) return false;
   const el = $('#cine');
   CINE = Object.assign({t:0, dur:5.4, cue:{}, parts:[]}, o);
+  if(uprightNow() && o.mediaV){ CINE.media = o.mediaV; o = Object.assign({}, o, {media:o.mediaV}); CINE.vert = true; }
+  if(o.frames && o.frames[0] && o.frames[0].naturalHeight > o.frames[0].naturalWidth) CINE.vert = true;
   const rnd2 = (a,b) => a + Math.random()*(b-a);
   for(let i=0;i<46;i++) CINE.parts.push({a:rnd2(0,6.28), v:rnd2(30,150), s:rnd2(1,3.4), d:rnd2(0,0.5), k:Math.random()});
   $('#cineK').textContent = o.kicker || 'אירוע חריג'; $('#cineT').textContent = o.title || ''; $('#cineS').textContent = o.sub || '';
@@ -2081,7 +2086,7 @@ function startCine(o){
   if(o.media){
     ccv.classList.add('hidden'); cvid.classList.remove('hidden'); cvid.loop = !!o.loop; cvid.src = o.media; cvid.currentTime = 0;
     const p = cvid.play(); if(p && p.catch) p.catch(() => {});
-    sizeCine(); if(CINE.narrow) ccv.classList.remove('hidden');
+    sizeCine(); if(CINE.narrow && !CINE.vert) ccv.classList.remove('hidden');
     if(!o.loop) cvid.onloadedmetadata = () => { if(CINE && isFinite(cvid.duration)) CINE.dur = Math.min(9, Math.max(3, cvid.duration)); };
   } else sizeCine();
   return true;
@@ -2094,19 +2099,20 @@ function sizeCine(){
   const tb = document.querySelector('.cine-bar.top').getBoundingClientRect(), bb = document.querySelector('.cine-bar.bot').getBoundingClientRect();
   CINE.top = tb.bottom; CINE.bot = bb.top;
   CINE.narrow = w/h < 1.3;                                 // a phone held upright: show the whole picture instead of cropping its sides
-  cvid.style.top = CINE.narrow ? CINE.top + 'px' : ''; cvid.style.height = CINE.narrow ? (CINE.bot - CINE.top) + 'px' : '';
-  cvid.style.objectFit = CINE.narrow ? 'contain' : '';
+  const box = CINE.narrow && !CINE.vert;                   // an upright clip already fits an upright phone
+  cvid.style.top = box ? CINE.top + 'px' : ''; cvid.style.height = box ? (CINE.bot - CINE.top) + 'px' : '';
+  cvid.style.objectFit = box ? 'contain' : '';
 }
 // Where a picture goes: wide screens fill edge to edge; upright phones show it whole between the black bars.
 function fitRect(c, iw, ih, z){
-  if(!c.narrow){ const s = Math.max(c.w/iw, c.h/ih)*z; return {x:(c.w-iw*s)/2, y:(c.h-ih*s)/2, w:iw*s, h:ih*s}; }
+  if(!c.narrow || c.vert){ const s = Math.max(c.w/iw, c.h/ih)*z; return {x:(c.w-iw*s)/2, y:(c.h-ih*s)/2, w:iw*s, h:ih*s}; }
   const ah = c.bot - c.top, s = Math.min(c.w/iw, ah/ih)*z;
   return {x:(c.w-iw*s)/2, y:c.top + (ah-ih*s)/2, w:iw*s, h:ih*s};
 }
 // A soft, dark copy of the picture behind it, so the space around a whole picture is not empty black.
 const blurCv = document.createElement('canvas'); blurCv.width = 32; blurCv.height = 18;
 function backdrop(c, src){
-  if(!c.narrow || !src) return;
+  if(!c.narrow || c.vert || !src) return;
   try{
     const b = blurCv.getContext('2d'); b.drawImage(src, 0, 0, 32, 18);
     const g = cctx, s = Math.max(c.w/32, c.h/18);
@@ -2124,7 +2130,7 @@ function cineTick(dt){
   const c = CINE; c.t += dt;
   if(c.foot && c.t > c.dur - 1.8 && !c.cue.foot){ c.cue.foot = 1; $('#cineF').textContent = c.foot; }
   if(!c.media) drawCine(c);
-  else if(c.narrow && cvid.readyState >= 2){ cctx.fillStyle = '#000'; cctx.fillRect(0,0,c.w,c.h); backdrop(c, cvid); }
+  else if(c.narrow && !c.vert && cvid.readyState >= 2){ cctx.fillStyle = '#000'; cctx.fillRect(0,0,c.w,c.h); backdrop(c, cvid); }
   if(c.t >= c.dur) endCine();
 }
 const ease = x => x<0 ? 0 : x>1 ? 1 : 1 - Math.pow(1-x, 3);
