@@ -308,6 +308,14 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 #unitCard .uca .rel{border-color:rgba(255,181,61,.6);color:var(--accent)}
 .irow .iu{background:rgba(47,125,255,.12);border:1px solid rgba(90,166,255,.4);border-radius:5px;padding:0 6px;color:#cfe1f8;font:inherit;font-weight:700;font-size:12px;cursor:pointer}
 .irow .iu:hover{border-color:var(--brand)}
+#pauseBox{position:fixed;inset:0;z-index:70;display:grid;place-items:center;background:rgba(2,6,16,.72);backdrop-filter:blur(4px)}
+#pauseBox.hidden{display:none}
+#pauseBox .pzc{display:grid;gap:10px;justify-items:center;text-align:center;padding:26px 30px;border-radius:14px;background:#0c1830;border:1px solid rgba(90,166,255,.4)}
+#pauseBox b{font-size:22px} #pauseBox span{color:var(--muted);font-size:14px}
+#pauseBox button{margin-top:6px;font:inherit;font-weight:800;font-size:18px;padding:12px 30px;border-radius:10px;border:0;background:var(--brand);color:#04101f;cursor:pointer}
+#game.compact .tbtn.pz .lbl{display:none}
+#game.compact .tbtn.pz{font-size:15px;padding:3px 10px}
+.tbtn.pz[aria-pressed="true"]{background:var(--brand);color:#04101f}
 #crewReq{position:fixed;top:72px;left:50%;transform:translateX(-50%);z-index:58;width:min(400px,94vw)}
 #crewReq.hidden{display:none}
 #crewReq .cr{background:linear-gradient(180deg,#2a0f16,#14080c);border:1px solid rgba(255,59,71,.6);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.6),0 0 24px rgba(255,59,71,.25);padding:12px 14px}
@@ -542,7 +550,7 @@ html.compact-mode #quickAns span{flex:1}
         <button type="button" class="ghost" id="btnVoiceTest">השמעת דוגמה</button>
       </div>
       <p class="voice-note" id="voiceNote"></p>
-      <p class="voice-note" id="buildTag" style="opacity:.6">גרסה 14.11 · 16:45</p>
+      <p class="voice-note" id="buildTag" style="opacity:.6">גרסה 14.11 · 20:55</p>
     </section>
 
     <button class="go" id="btnStart">כניסה למשמרת</button>
@@ -573,6 +581,7 @@ html.compact-mode #quickAns span{flex:1}
     <div class="stat"><span>שעה</span><b id="hClock">--:--</b></div>
     <div class="stat cnt"><span>אירועים שטופלו</span><b id="hCount">0</b></div>
     <div class="stat"><span>ציון משמרת</span><b id="hScore">–</b></div>
+    <button class="tbtn pz" id="btnPause" aria-pressed="false" title="השהיה (P)" aria-label="השהיה">⏸<span class="lbl"> השהיה</span></button>
     <button class="tbtn" id="btnMute" aria-pressed="false">השתק</button>
     <button class="tbtn" id="btnEnd">סיום משמרת</button>
   </header>
@@ -615,6 +624,7 @@ html.compact-mode #quickAns span{flex:1}
     </div>
   </div>
   <div id="unitCard" class="hidden" role="dialog" aria-modal="true" aria-label="פרטי ניידת"><div class="uc" id="ucBox"></div></div>
+<div id="pauseBox" class="hidden" role="dialog" aria-label="המשמרת מושהית"><div class="pzc"><b>המשמרת מושהית</b><span>השעון, השיחות והניידות עומדים במקום</span><button type="button" id="btnResume">▶ המשך משמרת</button></div></div>
 <div id="crewReq" class="hidden" role="alertdialog" aria-live="assertive"></div>
 <nav id="tabbar" aria-label="מסכי המשחק">
     <button type="button" data-view="call" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z" fill="currentColor"/></svg><span>שיחות</span><i class="badge" id="bCall"></i></button>
@@ -1532,6 +1542,7 @@ function startShift(district, city){
 /* ================= LOOP ================= */
 function frame(now){
   const dt = Math.min(0.1, (now-lastT)/1000); lastT = now;
+  if(S && !S.over && S.paused){ raf = requestAnimationFrame(frame); return; }      // paused: nothing moves
   if(S && !S.over){
     if(CINE) cineTick(dt); else { tick(dt); if(!S.over) draw(); }       // the shift clock stands still during a scene
     if(!S.over) raf = requestAnimationFrame(frame);
@@ -1562,15 +1573,12 @@ function tick(dt){
   const c = S.active;
   if(c && c.q.length && S.t >= c.nextAt){
     const l = c.q.shift(); l.ts = fmtS(c.base + (S.t - c.answeredAt)); c.lines.push(l);
-    c.nextAt = S.t + 0.35 + l.text.length*0.03;            // the text runs at reading pace and never waits for the voice
-    const voice = A.voice && A.he && (l.voiced || l.who==='op');
-    if(voice && c.waitVoice){                               // the opening "הלו, משטרה?" is heard in full before the story starts
-      c.waitVoice = false; const mine = c; c.nextAt = S.t + 3;
-      const go = () => { if(S && S.active===mine && mine.nextAt > S.t + 0.15) mine.nextAt = S.t + 0.15; };
-      say(l.text, {force:true, g:c.sc.g, rate:c.rate + 0.05, onend:go});
-    }
-    else if(voice && l.who==='caller'){
-      const busy = window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending), o = {force:l.reveal!=null, g:c.sc.g, rate:c.rate + 0.05};
+    c.nextAt = S.t + 0.35 + l.text.length*0.03;            // without a voice the text runs at reading pace
+    const voice = A.voice && A.he;
+    if(voice && l.who==='caller'){                          // everything the caller says is heard: each line shows as its speech starts, and the next waits for it to end
+      const mine = c, go = () => { if(S && S.active===mine && mine.nextAt > S.t + 0.25) mine.nextAt = S.t + 0.25; };
+      mine.nextAt = S.t + 1.4 + l.text.length*0.1;           // if the phone never says it ended, move on anyway
+      const busy = window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending), o = {force:true, g:c.sc.g, rate:c.rate + 0.05, onend:go};
       if(l.reveal!=null && busy){ hush(); setTimeout(() => say(l.text, o), 70); } else say(l.text, o);   // phones drop a line spoken in the same instant as a cancel
     }
     else if(voice && l.who==='op') say(l.text, {force:true, g:S.op.g, rate:1.12, pitch:S.op.g==='f' ? 1.1 : 0.95});
@@ -1686,7 +1694,7 @@ function answer(i){
     c.lines.push({who:'op', text:hi, ts:c.opened}); say(hi, {force:true, g:S.op.g, rate:1.08, pitch:S.op.g==='f' ? 1.1 : 0.95});
     const hello = c.sc.pri===1 ? pick(['הלו? משטרה?! מהר!', 'משטרה? תעזרו לי!']) : pick(['הלו, משטרה?', 'שלום, משטרה?', 'הלו? זה משטרה?']);
     c.q = [{who:'caller', text:hello, voiced:true}].concat(c.sc.o.map((t, i) => ({who: t.charAt(0)==='(' ? 'fx' : 'caller', text:fill(c,t), voiced:i===0})));
-    c.nextAt = S.t + (A.voice && A.he ? 1.9 : 0.5); c.waitVoice = A.voice && A.he;
+    c.nextAt = S.t + (A.voice && A.he ? 1.9 : 0.5);
   }
   if(compact) setView('call');
   renderQueue(); renderCall(); renderUnits(); tabBadges();
@@ -2567,7 +2575,21 @@ function endShift(){ unitCard(null); $('#crewReq').classList.add('hidden'); CREW
   $('#btnHome').addEventListener('click', home);
   $('#btnAgain').addEventListener('click', () => { initAudio(); startShift(S.district, S.city); });
 }
-$('#btnEnd').addEventListener('click', () => { if(S && !S.over) endShift(); });
+$('#btnEnd').addEventListener('click', () => { if(S && !S.over){ setPause(false); endShift(); } });
+// Pause: the clock, calls, units and sounds stop; the line being spoken is cut and stays on screen.
+function setPause(on){
+  if(!S || S.over) on = false;
+  if(S) S.paused = on;
+  $('#pauseBox').classList.toggle('hidden', !on);
+  $('#btnPause').setAttribute('aria-pressed', String(on)); $('#btnPause').innerHTML = on ? '▶<span class="lbl"> המשך</span>' : '⏸<span class="lbl"> השהיה</span>';
+  document.querySelectorAll('#cine video, video.opvid').forEach(v => { try{ on ? v.pause() : v.play().catch(() => {}); }catch(e){} });
+  if(on){ hush(); try{ A.ctx && A.ctx.suspend(); }catch(e){} keepAwake(false); }
+  else { try{ A.ctx && A.ctx.resume(); }catch(e){} if(S && !S.over) keepAwake(true); lastT = performance.now(); }
+}
+$('#btnPause').addEventListener('click', () => setPause(!(S && S.paused)));
+$('#btnResume').addEventListener('click', () => { initAudio(); setPause(false); });
+document.addEventListener('keydown', e => { if((e.key==='p' || e.key==='P' || e.key==='פ') && S && !S.over && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) setPause(!S.paused); });
+document.addEventListener('visibilitychange', () => { if(document.hidden && S && !S.over && !S.paused) setPause(true); });   // switching apps pauses the shift
 $('#btnMute').addEventListener('click', () => {
   A.sound = !A.sound; if(!A.sound){ A.voice = false; hush(); } else { A.voice = $('#optVoice').checked; }
   ambience(A.sound && S && !S.over);
