@@ -172,7 +172,19 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 #callPanel{flex:1}
 #call{display:flex;flex-direction:column;overflow:hidden;padding:0}
 .call-scroll{flex:1;min-height:0;overflow:auto;padding:10px 14px;scrollbar-width:thin;scrollbar-color:#27467c transparent}
-.call-foot{flex:none;padding:10px 14px 14px;background:linear-gradient(180deg,rgba(16,34,74,.0),rgba(16,34,74,.75));border-top:1px solid var(--line)}
+/* questions come first: the transcript takes what room is left (never under ~3 lines), the questions list scrolls only past that */
+#game:not(.compact) .call-scroll, #game.compact.land .call-scroll{display:flex;flex-direction:column;overflow:hidden}
+#game:not(.compact) .call-scroll .transcript, #game.compact.land .call-scroll .transcript{flex:1 1 60px;height:auto;min-height:58px;max-height:190px}
+#game:not(.compact) .qs button{font-size:13px;padding:5px 8px}
+#game:not(.compact) .qs kbd{font-size:10.5px;padding:0 4px}
+#game:not(.compact) .callmeta{margin-bottom:5px}
+#game:not(.compact) .loc{padding:6px 10px;margin-bottom:6px}
+#game:not(.compact) .call-scroll .qs, #game.compact.land .call-scroll .qs{flex:0 1 auto;min-height:96px;overflow:auto;scrollbar-width:thin;scrollbar-color:#27467c transparent;padding-bottom:2px;align-content:start}
+#game:not(.compact) .call-scroll > *, #game.compact.land .call-scroll > *{flex-shrink:0}
+#game:not(.compact) .call-scroll > .transcript, #game.compact.land .call-scroll > .transcript{flex-shrink:1}
+#game:not(.compact) .call-scroll > .qs, #game.compact.land .call-scroll > .qs{flex-shrink:1}
+#game:not(.compact) #queuePanel:not(.has) .body{display:none}
+.call-foot{flex:none;padding:8px 14px 10px;background:linear-gradient(180deg,rgba(16,34,74,.0),rgba(16,34,74,.75));border-top:1px solid var(--line)}
 .callmeta{display:flex;gap:14px;align-items:center;font-size:12.5px;color:var(--muted);margin-bottom:8px;font-variant-numeric:tabular-nums}
 .rec{display:inline-flex;align-items:center;gap:6px;color:#ff8a92;font-weight:500}
 .rec::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--crit);box-shadow:0 0 8px var(--crit);animation:pulse 1s ease-in-out infinite}
@@ -183,7 +195,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .loc.ok{border-color:rgba(53,211,154,.45)}
 .loc b{font-weight:500;font-size:15px;min-width:0}
 /* the conversation, as a screen */
-.transcript{height:150px;overflow:auto;padding:10px 12px;border-radius:8px;background:
+.transcript{height:128px;overflow:auto;padding:10px 12px;border-radius:8px;background:
     repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 3px),
     #030c1c;
   border:1px solid #1b4a8e;box-shadow:inset 0 0 26px rgba(47,125,255,.16);scrollbar-width:thin;scrollbar-color:#27467c transparent}
@@ -196,36 +208,38 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .ln.op .tx{color:#a9c6ea}
 .ln.fx .tx{color:var(--muted);font-style:italic}
 .cursor{display:inline-block;width:8px;height:15px;background:var(--brand);box-shadow:0 0 8px var(--brand);vertical-align:-2px;animation:pulse 1s steps(2) infinite}
-.tabs{display:flex;gap:6px;margin:10px 0 6px}
+.tabs{display:flex;gap:6px;margin:8px 0 5px}
 .tabs button{flex:1;background:transparent;border:0;border-bottom:2px solid var(--line);padding:6px 4px;font-weight:700;font-size:14px;color:var(--muted)}
 .tabs button i{font-style:normal;font-weight:400;font-size:12px;margin-inline-start:4px;background:var(--panel-2);border-radius:999px;padding:0 7px}
 .tabs button[aria-pressed="true"]{color:#fff;border-bottom-color:var(--brand);box-shadow:0 8px 12px -10px var(--brand)}
 .tabs button.i[aria-pressed="true"]{border-bottom-color:var(--ok);box-shadow:0 8px 12px -10px var(--ok)}
-.qs{display:flex;flex-direction:column;gap:5px}
-.qs button{display:flex;gap:10px;align-items:baseline;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14.5px;text-align:right;transition:background .12s,border-color .12s}
+.qs{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:5px}
+.qs .empty{grid-column:1/-1}
+.qs button{display:flex;gap:8px;align-items:baseline;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:14px;line-height:1.3;text-align:right;transition:background .12s,border-color .12s}
 .qs button:hover{border-color:var(--brand);background:rgba(47,214,255,.08)}
 .qs button.new{border-color:var(--brand);box-shadow:0 0 12px rgba(47,214,255,.3)}
 .qs.ins button:hover{border-color:var(--ok);background:rgba(53,211,154,.08)}
 .qs kbd{font-family:inherit;font-size:11.5px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 6px;background:var(--well);font-variant-numeric:tabular-nums}
 .exts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
-.exts button{display:flex;flex-direction:column;align-items:center;gap:0;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:8px;padding:5px 4px;font-size:12.5px;color:var(--muted)}
-.exts button b{font-size:16px;font-weight:900;color:var(--text);font-variant-numeric:tabular-nums}
+.exts button{display:flex;flex-direction:row;justify-content:center;align-items:baseline;gap:5px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:8px;padding:5px 4px;font-size:12.5px;color:var(--muted)}
+.exts button b{font-size:14.5px;font-weight:900;color:var(--text);font-variant-numeric:tabular-nums}
 .exts button[aria-pressed="true"]{border-color:var(--ok);background:rgba(53,211,154,.14);color:var(--ok);box-shadow:0 0 12px rgba(53,211,154,.25)}
 .exts button[aria-pressed="true"] b{color:var(--ok)}
 .dec{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.dec button{--ch:8px;border:0;padding:11px 8px;font-weight:900;font-size:16px;color:#fff;clip-path:polygon(var(--ch) 0,100% 0,100% calc(100% - var(--ch)),calc(100% - var(--ch)) 100%,0 100%,0 var(--ch))}
+.dec button{--ch:8px;border:0;padding:9px 8px;font-weight:900;font-size:16px;color:#fff;clip-path:polygon(var(--ch) 0,100% 0,100% calc(100% - var(--ch)),calc(100% - var(--ch)) 100%,0 100%,0 var(--ch))}
 .dec .u{background:linear-gradient(180deg,#ff5c66,#d81f2c)}
 .dec .r{background:linear-gradient(180deg,#4d95ff,#1c5fe0)}
 .dec button:hover{filter:brightness(1.12)}
 .dec button:active{transform:translateY(1px)}
-.sub{font-size:12px;color:var(--muted);margin:8px 0 5px}
-.xfer{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:6px}
-.xfer button.ref{grid-column:1/-1;border-color:rgba(255,181,61,.45)}
+.sub{font-size:11.5px;color:var(--muted);margin:6px 0 4px}
+.xfer{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.xfer button.ref{border-color:rgba(255,181,61,.45)}
+.xfer button span{font-size:11.5px}
 .xfer button.ref b{color:var(--accent)}
-.xfer button{background:transparent;border:1px solid var(--line);border-radius:8px;padding:6px 4px;font-size:13px;color:var(--muted)}
+.xfer button{background:transparent;border:1px solid var(--line);border-radius:8px;padding:5px 2px;font-size:13px;color:var(--muted);white-space:nowrap}
 .xfer button b{color:var(--text);font-weight:700;margin-inline-end:4px}
 .xfer button:hover{border-color:var(--accent)}
-.endcall{width:100%;margin-top:8px;background:transparent;border:1px solid var(--ok);border-radius:8px;color:var(--ok);padding:9px;font-weight:700;font-size:15px}
+.endcall{width:100%;margin-top:6px;background:transparent;border:1px solid var(--ok);border-radius:8px;color:var(--ok);padding:7px;font-weight:700;font-size:15px}
 .endcall:hover{background:rgba(53,211,154,.12)}
 .endcall:disabled{opacity:.5;cursor:default}
 .hint{color:var(--accent);font-size:13px;min-height:19px;margin:6px 0 0}
@@ -440,7 +454,8 @@ html.compact-mode,html.compact-mode body{height:100%;overflow:hidden;overscroll-
 #game.compact .callmeta{margin-bottom:6px}
 #game.compact .loc{padding:6px 10px;margin-bottom:6px}
 #game.compact .tabs{margin:8px 0 5px}
-#game.compact .qs button{padding:9px 10px}
+#game.compact .qs{grid-template-columns:1fr}
+#game.compact .qs button{padding:8px 10px}
 #game.compact .call-foot{padding:8px 10px 8px;background:linear-gradient(180deg,#0f2148,#0a1632);box-shadow:0 -10px 18px rgba(3,8,20,.6)}
 #game.compact .exts{margin-bottom:6px}
 #game.compact .exts button{flex-direction:row;justify-content:center;gap:5px;padding:7px 4px}
@@ -556,7 +571,7 @@ html.compact-mode #quickAns span{flex:1}
         <button type="button" class="ghost" id="btnVoiceTest">השמעת דוגמה</button>
       </div>
       <p class="voice-note" id="voiceNote"></p>
-      <p class="voice-note" id="buildTag" style="opacity:.6">גרסה 14.11 · 20:55 · רמות</p>
+      <p class="voice-note" id="buildTag" style="opacity:.6">גרסה 14.11 · 21:40</p>
     </section>
 
     <button class="go" id="btnStart">כניסה למשמרת</button>
@@ -2047,10 +2062,10 @@ function renderCall(){
       ${sent ? `<button type="button" class="endcall" data-act="end" ${c.ending?'disabled':''}>סיום שיחה · באירוע: ${esc(c.inc.units.map(u => u.cs).join(', '))}</button>` :
       `<p class="sub">בלי ניידת</p>
       <div class="xfer">
-        <button type="button" data-act="t"><b>העברה</b>לגורם המסומן</button>
-        <button type="button" data-act="110"><b>110</b>מידע</button>
-        <button type="button" data-act="x"><b>ניתוק</b>סרק</button>
-        <button type="button" class="ref" data-act="ref"><b>הפניה לתחנה</b>הגשת תלונה · מסירת מציאה</button>
+        <button type="button" data-act="t" title="העברה לגורם המסומן: מד״א, כיבוי או עירייה"><b>העברה</b><span>לגורם</span></button>
+        <button type="button" data-act="110" title="הפניה למוקד 110 למידע"><b>110</b><span>מידע</span></button>
+        <button type="button" data-act="x" title="ניתוק שיחת סרק"><b>ניתוק</b><span>סרק</span></button>
+        <button type="button" class="ref" data-act="ref" title="הפניה לתחנה: הגשת תלונה או מסירת מציאה"><b>לתחנה</b><span>תלונה</span></button>
       </div>
       <button type="button" class="endcall" data-act="endno" ${c.ending?'disabled':''}>סיום שיחה, בלי ניידת</button>`}
       <p class="hint" role="status">${esc(c.hint||'')}</p>
