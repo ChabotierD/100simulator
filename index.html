@@ -477,7 +477,7 @@ html.compact-mode #quickAns span{flex:1}
       <ol>
         <li>כשקו מצלצל לוחצים על ״מענה״, על הכפתור הירוק שצף בתחתית המסך, או על רווח במקלדת. אפשר לענות גם באמצע שיחה אחרת: המתקשר הנוכחי עובר להמתנה ולא מנתק.</li>
         <li>השאלות משתנות לפי מה שהמתקשר אומר, ותשובה יכולה לפתוח שאלת המשך.</li>
-        <li>מסמנים כוחות ברשימה, ואם צריך גם מד״א, כיבוי או עירייה, ואז בוחרים נסיעה דחופה או רגילה.</li>
+        <li>מסמנים כוחות ברשימה, ואם צריך גם מד״א, כיבוי או עירייה, ואז בוחרים נסיעה מבצעית או רגילה.</li>
         <li>בלוח ״אירועים פתוחים״ מוסיפים אמבולנס, כיבוי או עירייה לאירוע בכל רגע, גם בלי כוח נוסף וגם אחרי שהשיחה נסגרה. לתגבור מסמנים כוח פנוי ולוחצים ״תגבור״.</li>
         <li>אחרי השיגור הקו נשאר פתוח: אפשר להמשיך לשאול, לשלוח תגבור, ולסיים את השיחה כשמתאים. באירוע חריג שולחים שניים או שלושה כוחות.</li>
         <li>קריאה שלא דורשת ניידת מעבירים לגורם המתאים או מסיימים ב״סיום שיחה, בלי ניידת״.</li>
@@ -1101,9 +1101,14 @@ function radioTx(dur, siren, unit){
   bedStart(siren, unit); const mine = bed; setTimeout(() => { if(bed === mine) bedStop(); }, clamp(dur||1.4, 0.6, 7)*1000);
 }
 // ---- recorded radio voices.
-// arrive = "מרכז, סמני לי הגעה לאירוע", used by every unit. An opener is a unit calling in by name ("מרכז נתניה 401"), keyed control|station|call sign,
-// and is played before the arrival report of that unit only.
-const CLIPS = {arrive:'voice/a402.mp3', 'מרכז|נתניה|401':'voice/a401.mp3'};
+// A unit's transmission is played from recordings when its report has one: first the unit calling in ("מרכז נתניה ארבע מאות ואחת"),
+// if that station and unit have an opener, then the report itself. Without a report recording the built-in voice reads the whole line.
+// Openers: 'open|<station on the radio>|<call sign>'. Reports: 'rep|<report>' or 'rep|<report>|<control>' for one district only.
+// Reports: go-op יוצא בנסיעה מבצעית, go יוצא לאירוע, arrive-f / arrive-m סמני / סמן לי הגעה, noaddr אין מספר בית, scene בזירה,
+// need-101 / need-102 / need-106 נדרש אמבולנס / כיבוי / עירייה, done סיום טיפול, patrol סיור שגרתי.
+// Station file names: netanya, kfarsaba, pt, rishon, yarkon, ramatgan, holon, haifa, hadera, zevulun. Units: 401 402 403 404 411 412 yasam.
+const STATION_FILE = {'נתניה':'netanya','כפר סבא':'kfarsaba','פ״ת':'pt','ראשון':'rishon','ירקון':'yarkon','רמת גן':'ramatgan','חולון':'holon','חיפה':'haifa','חדרה':'hadera','זבולון':'zevulun'};
+const CLIPS = {'open|נתניה|401':'voice/a401.mp3', 'rep|arrive-f|מרכז':'voice/a402.mp3'};
 const clipBuf = {}; let clipChain = Promise.resolve();
 function playNow(buf, vol, loop){ try{
   if(!buf || buf === 'loading' || !A.ctx) return null;
@@ -1132,9 +1137,10 @@ function playClip(buf){                                     // one recorded clip
 // A spoken transmission: the static and siren start when the voice starts and end when it ends.
 function radioSay(text, o){
   o = o || {};
-  const clip = A.sound && A.ctx ? clipFor(o.clip) : null;
+  const findRep = id => id && S ? (clipFor('rep|' + id + '|' + S.ctl) || clipFor('rep|' + id)) : null;
+  const clip = A.sound && A.ctx ? (findRep(o.rep) || findRep({'arrive-m':'arrive-f', 'arrive-f':'arrive-m'}[o.rep])) : null;   // until both versions exist, one stands in for the other
   if(clip){                                                 // the recorded report, on its own: no built-in voice on top of it
-    const opener = o.u && S ? clipFor(S.ctl + '|' + S.city.radio + '|' + o.u.cs) : null;
+    const opener = o.u && S ? clipFor('open|' + S.city.radio + '|' + o.u.cs) : null;
     bedStart(o.siren, true); const mine = bed;
     if(opener){ playClip(opener); clipChain = clipChain.then(() => new Promise(r => setTimeout(r, 450))); }   // the unit calls in, a beat, then the report
     playClip(clip).then(() => { if(bed === mine) bedStop(); });
@@ -1176,9 +1182,22 @@ function loadVoices(){
   }catch(e){}
 }
 const DIG = ['אפס','אחת','שתיים','שלוש','ארבע','חמש','שש','שבע','שמונה','תשע'];
+// 401 -> "ארבע מאות ואחת", 412 -> "ארבע מאות ושתים עשרה".
+function numWords(n){
+  const U = ['','אחת','שתיים','שלוש','ארבע','חמש','שש','שבע','שמונה','תשע'], T = ['','עשר','עשרים','שלושים','ארבעים','חמישים','שישים','שבעים','שמונים','תשעים'];
+  const H = ['','מאה','מאתיים','שלוש מאות','ארבע מאות','חמש מאות','שש מאות','שבע מאות','שמונה מאות','תשע מאות'];
+  const TEEN = {11:'אחת עשרה',12:'שתים עשרה',13:'שלוש עשרה',14:'ארבע עשרה',15:'חמש עשרה',16:'שש עשרה',17:'שבע עשרה',18:'שמונה עשרה',19:'תשע עשרה'};
+  const h = Math.floor(n/100), r = n % 100, parts = [];
+  if(h) parts.push(H[h]);
+  let rest = '';
+  if(r >= 11 && r <= 19) rest = TEEN[r];
+  else if(r){ const t = Math.floor(r/10), u = r % 10; rest = t && u ? T[t] + ' ו' + U[u] : (T[t] || U[u]); }
+  if(rest) parts.push((h ? 'ו' : '') + rest);
+  return parts.join(' ');
+}
 function spoken(text, radio){
   let t = text.replace(/יס״מ/g,'יַסָּם').replace(/מד״א/g,'מָדָא').replace(/פ״ת/g,'פֵּ תָּ');
-  if(radio) t = t.replace(/\b4\d\d\b/g, m => m.split('').map(d => DIG[+d]).join(' '));   // call signs are read digit by digit
+  if(radio) t = t.replace(/\b[1-9]\d\d\b/g, m => numWords(+m));                   // call signs are said as a number: ארבע מאות ושלוש
   return t.replace(/[״׳]/g,'');
 }
 function say(text, o){
@@ -1290,7 +1309,7 @@ $('#btnVoiceTest').addEventListener('click', () => {
   A.sound = true; A.voice = true; initAudio(); loadVoices(); hush();
   const d = DISTRICTS[selD], c = d.cities[selC];
   say('שלום, אני חושבת שפרצו לשכנים שלי. תבואו מהר!', {force:true, g:'f', rate:1.05});
-  loadClips(); radioSay(d.ctl + ' ' + c.radio + ' 401, קיבלתי. יוצא לאירוע בנסיעה דחופה.', {siren:'wail', unit:true});
+  loadClips(); radioSay(d.ctl + ' ' + c.radio + ' 401, קיבלתי. יוצא לאירוע בנסיעה מבצעית.', {siren:'wail', unit:true, rep:'go-op'});
 });
 $('#btnStart').addEventListener('click', () => {
   A.sound = $('#optSound').checked; A.voice = $('#optVoice').checked;
@@ -1425,7 +1444,7 @@ function tick(dt){
   ambient(dt);
   for(const inc of S.incs.slice()){
     if(inc.askAt!=null && S.t >= inc.askAt){ inc.askAt = null; askForCrew(inc); }
-    if(inc.repAt!=null && S.t >= inc.repAt && inc.sc.pri < 3){ inc.repAt = null; const u = inc.units[0], m = S.ctl + ' ' + rname(u) + ', אני בזירה, מתחיל טיפול.'; log('radio', rname(u), m); radioSay(m, {u}); }
+    if(inc.repAt!=null && S.t >= inc.repAt && inc.sc.pri < 3){ inc.repAt = null; const u = inc.units[0], m = S.ctl + ' ' + rname(u) + ', אני בזירה, מתחיל טיפול.'; log('radio', rname(u), m); radioSay(m, {u, rep:'scene'}); }
     if(inc.sceneAt!=null && S.t >= inc.sceneAt + inc.dur) closeInc(inc);
   }
   S.uiT -= dt;
@@ -1466,7 +1485,8 @@ function ambient(dt){
   if(S.chatAt <= 0){
     S.chatAt = rnd(26,44);
     const free = S.units.filter(u => u.state==='free');
-    if(free.length){ const u = pick(free); radioTx(1.3, null, true); log('radio', rname(u), S.ctl + ' ' + rname(u) + ', ' + pick(CHATTER).replace('{h}', S.nodes[u.node].n)); }
+    if(free.length){ const u = pick(free); const ln = S.ctl + ' ' + rname(u) + ', ' + pick(CHATTER).replace('{h}', S.nodes[u.node].n);
+      if(clipFor('rep|patrol')) radioSay(ln, {u, rep:'patrol'}); else radioTx(1.3, null, true); log('radio', rname(u), ln); }
   }
 }
 function spawnVeh(inc, k){
@@ -1603,8 +1623,8 @@ function sendUnits(inc, units, urgent){
     u.path = route(u.node, inc.ni).map(k => ({x:S.nodes[k].x, y:S.nodes[k].y})).concat([{x:inc.x + 3*Math.cos(u.slot*2.1), y:inc.y + 3*Math.sin(u.slot*2.1)}]);
     u.node = inc.ni;
     setTimeout(() => { if(S && !S.over){
-      const m = S.ctl + ' ' + rname(u) + (urgent ? ', קיבלתי. יוצא לאירוע בנסיעה דחופה.' : ', קיבלתי. יוצא לאירוע.');
-      log('radio', rname(u), m); if(i===0) radioSay(m, {u, siren: urgent ? 'wail' : null}); else radioTx(1.2, urgent ? 'wail' : null, true);
+      const m = S.ctl + ' ' + rname(u) + (urgent ? ', קיבלתי. יוצא לאירוע בנסיעה מבצעית.' : ', קיבלתי. יוצא לאירוע.');
+      log('radio', rname(u), m); if(i===0) radioSay(m, {u, siren: urgent ? 'wail' : null, rep: urgent ? 'go-op' : 'go'}); else radioTx(1.2, urgent ? 'wail' : null, true);
     } }, 2600 + i*2200);
   });
 }
@@ -1614,14 +1634,14 @@ function dispatch(c, units, urgent, crews){
   S.incs.push(inc); c.inc = inc; c.liveAt = S.t + rnd(5,8);
   if(CINE_TYPE[c.sc.t] || CINE_MEDIA[c.sc.t]) startCine({type:CINE_TYPE[c.sc.t], media:CINE_MEDIA[c.sc.t], frames:cineFrames(c.sc.t), cue0:(CINE_FRAMES[c.sc.t]||[])[1], snd:(CINE_FRAMES[c.sc.t]||[])[2], dur:cineFrames(c.sc.t) ? 5.8 : 5.4, title:c.sc.t, sub:'', foot:'הכוחות בדרך'});     // kept clean: no street, city or hour, so one scene fits every city
   crews.forEach(k => spawnVeh(inc, k));
-  const msg = unitNames(units) + ' כאן ' + S.ctl + '. ' + (c.sc.rad || c.sc.t) + ', ' + whereText(inc) + '. ' + (urgent ? 'נסיעה דחופה.' : 'נסיעה רגילה.');
+  const msg = unitNames(units) + ' כאן ' + S.ctl + '. ' + (c.sc.rad || c.sc.t) + ', ' + whereText(inc) + '. ' + (urgent ? 'נסיעה מבצעית.' : 'נסיעה רגילה.');
   log('ops', S.ctl, msg); radioSay(msg, {g:S.op.g, pitch:S.op.g==='f' ? 1.1 : 0.95, rate:1.12});
   if(crews.length) log('ops', S.ctl, crews.map(k => EXT[k].n).join(' ו') + ' עודכנו, ' + crews.map(k => EXT[k].crew).join(' ו') + ' בדרך למקום.');
   sendUnits(inc, units, urgent); renderIncs();
 }
 function reinforce(inc, units, urgent){
   inc.units.push(...units);
-  const msg = unitNames(units) + ' כאן ' + S.ctl + '. תגבור לאירוע ' + (inc.sc.rad || inc.sc.t) + ', ' + whereText(inc) + '. ' + (urgent ? 'נסיעה דחופה.' : 'נסיעה רגילה.');
+  const msg = unitNames(units) + ' כאן ' + S.ctl + '. תגבור לאירוע ' + (inc.sc.rad || inc.sc.t) + ', ' + whereText(inc) + '. ' + (urgent ? 'נסיעה מבצעית.' : 'נסיעה רגילה.');
   log('ops', S.ctl, msg); radioSay(msg, {g:S.op.g, pitch:S.op.g==='f' ? 1.1 : 0.95, rate:1.12});
   sendUnits(inc, units, urgent); renderIncs();
 }
@@ -1653,7 +1673,7 @@ function arrive(u){
     inc.arrivedAt = S.t; inc.repAt = S.t + 5;
     if(S.active === inc.c && !inc.c.ending && inc.sc.arr){ inc.c.q.push({who:'caller', text:inc.sc.arr}); if(inc.c.nextAt < S.t) inc.c.nextAt = S.t + 0.3; }
     const m = S.ctl + ' ' + rname(u) + (inc.hasAddr ? (S.op.g==='f' ? '. ' + S.ctl + ', סמני לי הגעה לאירוע.' : '. ' + S.ctl + ', סמן לי הגעה לאירוע.') : ', אני ב' + stName(inc.c.st) + ' בלי מספר בית. סורק את הרחוב.');
-    log('radio', rname(u), m); radioSay(m, {u, siren: inc.urgent ? 'yelp' : null, clip: inc.hasAddr ? 'arrive' : null});
+    log('radio', rname(u), m); radioSay(m, {u, siren: inc.urgent ? 'yelp' : null, rep: inc.hasAddr ? (S.op.g==='f' ? 'arrive-f' : 'arrive-m') : 'noaddr'});
     inc.sceneAt = inc.hasAddr ? S.t : S.t + 9;
     const n = inc.units.reduce((a,x) => a + x.w, 0), need = inc.sc.need||1;
     inc.dur = inc.sc.pri===3 ? 8 : (inc.sc.dur||16) * (n < need ? 1.6 : 1);
@@ -1666,7 +1686,7 @@ function askForCrew(inc){
   inc.dur += 6;
   inc.late = true;
   const u = inc.units[0], m = S.ctl + ' ' + rname(u) + ', נדרש כאן ' + inc.missing.map(k => EXT[k].crew).join(' ו') + ' בדחיפות. לא הוזמן.';
-  log('bad', rname(u), m); renderIncs(); radioSay(m, {u, siren: inc.urgent ? 'yelp' : null});
+  log('bad', rname(u), m); renderIncs(); radioSay(m, {u, siren: inc.urgent ? 'yelp' : null, rep: inc.missing.length===1 ? 'need-' + inc.missing[0] : null});
   inc.shown = inc.crews.concat(inc.missing);
 }
 function closeInc(inc){
@@ -1679,7 +1699,7 @@ function closeInc(inc){
     const need = sc.need, short = n < need, notes = [];
     let s = 0;
     if((sc.pri===1) === inc.urgent) s += 25;
-    else if(sc.pri===1){ s += 8; notes.push('האירוע דרש נסיעה דחופה.'); }
+    else if(sc.pri===1){ s += 8; notes.push('האירוע דרש נסיעה מבצעית.'); }
     else { s += 16; notes.push('נסיעה רגילה הייתה מספיקה.'); }
     if(short){ s += 6; notes.push('נדרשו ' + need + ' כוחות.'); }
     else { const extra = n-need; s += Math.max(4, 20 - extra*7); if(extra>0) notes.push('נשלחו יותר כוחות מהנדרש.'); }
@@ -1700,7 +1720,7 @@ function closeInc(inc){
     score = s; ok = !short && !missing.length && s >= 70; result = short ? (sc.bad || sc.good) : sc.good; note = notes.join(' ');
   }
   const msg = S.ctl + ' ' + rname(lead) + ', ' + result + '. סיום טיפול.';
-  log('radio', rname(lead), msg); radioSay(msg, {u:lead});
+  log('radio', rname(lead), msg); radioSay(msg, {u:lead, rep:'done'});
   setTimeout(() => { if(S && !S.over) log('ops', S.ctl, rname(lead) + ' כאן ' + S.ctl + ', קיבלתי. סיום טיפול.'); }, 1200);
   inc.units.forEach(u => { u.state = 'free'; u.inc = null; u.path = []; u.urgent = false; u.idle = rnd(3,8); });
   record(sc.t, score, note, ok);
@@ -1789,7 +1809,7 @@ function renderCall(){
       <div class="exts">${Object.keys(EXT).map(k => `<button type="button" data-ext="${k}" aria-pressed="${sent ? c.inc.crews.includes(k) : !!c.ext[k]}"><b>${k}</b>${EXT[k].crew}</button>`).join('')}</div>
       <div class="chips-label"><span>${sent ? 'כוחות לתגבור' : 'בחירת כוחות'}</span><span>${S.units.filter(u => u.sel).length ? S.units.filter(u => u.sel).length + ' נבחרו' : S.units.filter(u => u.state==='free').length + ' זמינים'}</span></div>
       <div class="chips">${S.units.map((u,i) => `<button type="button" class="chip ${u.state}" data-uc="${i}" aria-pressed="${u.sel}" ${u.state!=='free'?'disabled':''}><b>${u.cs}</b><span>${{free:'זמין', enroute:'בדרך', scene:'בזירה'}[u.state]}</span></button>`).join('')}</div>
-      <div class="dec"><button type="button" class="u" data-act="u">${sent ? 'תגבור דחוף' : 'שיגור דחוף'}</button><button type="button" class="r" data-act="r">${sent ? 'תגבור רגיל' : 'שיגור רגיל'}</button></div>
+      <div class="dec"><button type="button" class="u" data-act="u">${sent ? 'תגבור מבצעי' : 'שיגור מבצעי'}</button><button type="button" class="r" data-act="r">${sent ? 'תגבור רגיל' : 'שיגור רגיל'}</button></div>
       ${sent ? `<button type="button" class="endcall" data-act="end" ${c.ending?'disabled':''}>סיום שיחה · באירוע: ${esc(c.inc.units.map(u => u.cs).join(', '))}</button>` :
       `<p class="sub">בלי ניידת</p>
       <div class="xfer">
@@ -1849,7 +1869,7 @@ function renderUnits(){
   $('#units').innerHTML = S.units.map((u,i) =>
     `<button type="button" class="unit ${u.state}" data-u="${i}" aria-pressed="${u.sel}" ${u.state!=='free'?'disabled':''}>
       ${UICON[u.kind]}<span class="cs">${u.cs}</span><span class="ty">${u.type} · ${esc(u.state!=='free' && u.inc ? u.inc.c.hood : S.nodes[u.node].n)}</span>
-      <span class="stx">${lab[u.state]}${u.state==='enroute' && u.urgent ? ' דחוף' : ''}</span></button>`).join('');
+      <span class="stx">${lab[u.state]}${u.state==='enroute' && u.urgent ? ' מבצעי' : ''}</span></button>`).join('');
   const n = S.units.filter(u => u.sel).length;
   $('#selCount').textContent = n ? n + ' מסומנים' : S.units.filter(u => u.state==='free').length + ' זמינים';
 }
