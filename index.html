@@ -287,7 +287,6 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 #unitCard .uc{width:min(380px,92vw);background:linear-gradient(180deg,#0f1e38,#0a1426);border:1px solid rgba(90,166,255,.35);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.6);overflow:hidden}
 #unitCard .uch{display:flex;align-items:center;gap:12px;padding:14px 16px;background:rgba(47,125,255,.12);border-bottom:1px solid var(--line)}
 #unitCard .uch svg{width:44px;height:24px}
-#unitCard .uch .uimg{animation:ucCar .5s cubic-bezier(.2,.9,.3,1.1)} @keyframes ucCar{from{transform:translateX(40px);opacity:0}}
 #unitCard .uch b{font-size:26px;font-weight:900;font-variant-numeric:tabular-nums}
 #unitCard .uch .t{color:var(--muted);font-size:13px}
 #unitCard .uch .stx{margin-inline-start:auto;font-size:12.5px;font-weight:700;border-radius:5px;padding:3px 10px}
@@ -304,25 +303,9 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 #unitCard .uca{display:flex;gap:8px;margin-top:12px}
 #unitCard .uca button{flex:1;padding:9px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:inherit;font:inherit;font-weight:700}
 #unitCard .uca .pri{background:var(--brand);border-color:var(--brand);color:#04101f}
-/* the card slides up, the crew files in one by one, a light bar runs on top while the unit drives with lights */
-#unitCard:not(.hidden){animation:ucFade .18s ease-out}
-#unitCard .uc{animation:ucIn .32s cubic-bezier(.2,.9,.3,1.2);position:relative}
-#unitCard .uc.still, #unitCard .uc.still .crew div, #unitCard .uc.still .ev, #unitCard .uc.still h4{animation:none}
-#unitCard .crew div{animation:ucRow .38s ease-out both}
-#unitCard .crew div:nth-child(2){animation-delay:.07s} #unitCard .crew div:nth-child(3){animation-delay:.14s} #unitCard .crew div:nth-child(4){animation-delay:.21s}
-#unitCard .ev{animation:ucRow .38s ease-out .12s both}
-#unitCard .rk{position:relative;overflow:hidden}
-#unitCard .rk:after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.65) 50%,transparent 70%);transform:translateX(-120%);animation:ucShine 2.8s ease-in-out infinite}
-#unitCard .stx.enroute,#unitCard .stx.scene{animation:ucPulse 1.4s ease-in-out infinite}
-#unitCard .bar{height:4px;background:linear-gradient(90deg,#ff2b3d 0 50%,#2f7dff 50% 100%);background-size:200% 100%;animation:ucBar .5s steps(2) infinite}
+#unitCard .bar{height:4px;background:linear-gradient(90deg,#ff2b3d 0 50%,#2f7dff 50% 100%)}
 #unitCard .av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:13px;background:linear-gradient(160deg,#1d3d74,#0e1f3d);border:1px solid rgba(90,166,255,.4);color:#cfe1f8;flex:none}
-@keyframes ucFade{from{background:rgba(2,6,16,0)}}
-@keyframes ucIn{from{transform:translateY(26px) scale(.94);opacity:0}}
-@keyframes ucRow{from{transform:translateX(-16px);opacity:0}}
-@keyframes ucShine{60%,100%{transform:translateX(120%)}}
-@keyframes ucPulse{50%{filter:brightness(1.6);box-shadow:0 0 12px currentColor}}
-@keyframes ucBar{to{background-position:100% 0}}
-@media (prefers-reduced-motion:reduce){#unitCard *{animation:none!important}}
+#unitCard, #unitCard *{animation:none!important}   /* the card stays still */
 
 /* radio */
 #logPanel{flex:1}
