@@ -387,6 +387,9 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .card td{padding:8px 4px;border-bottom:1px solid rgba(255,255,255,.07);vertical-align:top}
 .card td:last-child{text-align:left;font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap}
 .card td small{display:block;color:var(--muted)}
+.lvup{background:linear-gradient(90deg,rgba(201,166,70,.25),rgba(201,166,70,.06));border:1px solid rgba(201,166,70,.6);border-radius:10px;padding:10px 14px;margin:0 0 14px;font-weight:800;font-size:16px;color:#ffe2a0}
+.lvup small{display:block;font-weight:400;font-size:13px;color:var(--muted)}
+.lvnext{color:var(--muted);font-size:13px;margin:-6px 0 12px}
 .ehint{color:var(--muted);font-size:12.5px;margin:10px 0 6px}
 .er{border:1px solid var(--line);border-radius:9px;margin-bottom:7px;background:rgba(255,255,255,.025)}
 .er summary{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;list-style:none}
@@ -536,6 +539,9 @@ html.compact-mode #quickAns span{flex:1}
     <section>
       <p class="step-label">5. הגדרות</p>
       <div class="opts">
+        <label for="optLevel">רמה
+          <select id="optLevel"></select>
+        </label>
         <label for="optUnits">כוחות במשמרת
           <select id="optUnits">
             <option value="3">3 צוותים</option><option value="4">4 צוותים</option><option value="5" selected>5 צוותים</option><option value="6">6 צוותים</option><option value="7">7 צוותים</option><option value="8">8 צוותים</option>
@@ -550,7 +556,7 @@ html.compact-mode #quickAns span{flex:1}
         <button type="button" class="ghost" id="btnVoiceTest">השמעת דוגמה</button>
       </div>
       <p class="voice-note" id="voiceNote"></p>
-      <p class="voice-note" id="buildTag" style="opacity:.6">גרסה 14.11 · 20:55</p>
+      <p class="voice-note" id="buildTag" style="opacity:.6">גרסה 14.11 · 20:50 · רמות</p>
     </section>
 
     <button class="go" id="btnStart">כניסה למשמרת</button>
@@ -1141,7 +1147,17 @@ const SHIFTS = {m:{name:'משמרת בוקר', start:7, hours:'07:00 עד 15:00'
 const SHIFT_ONLY = {'רכב נשרט בלילה':'m', 'מסיבה רועשת בדירה':'en', 'קריוקי בחצר':'n', 'נערים מרעישים בגינה':'n', 'ילד נעדר':'me', 'הונאת קשישים, שליח בדרך':'me', 'גניבה מחנות, חשוד מעוכב':'me', 'רמזורים כבויים בצומת':'me',
   'גניבת אופניים חשמליים בזמן אמת':'me', 'חשד לנהג שיכור':'en', 'פעוט נעול ברכב':'me', 'אזעקה בעסק סגור':'n', 'כלב משוטט':'me', 'איומים על נהג אוטובוס':'en', 'שוד בקיוסק':'en', 'חשד למעקב אחרי אישה':'en', 'תאונת עבודה באתר בנייה':'m'};
 const SHIFT_LEN = 420;          // real seconds
-const RING_LIMIT = 60;          // seconds before a caller gives up
+// Levels: each one brings calls faster, more at once, callers who hang up sooner, and more severe incidents.
+// A level opens once the shift before it on the level below ends with 70 or more.
+const LEVELS = [
+  {n:'מתלמד',        gap:[34,44], max:2, ring:70, heavy:0.35, about:'שיחות מעטות, יותר זמן לחשוב'},
+  {n:'מוקדן',        gap:[22,30], max:4, ring:60, heavy:1,    units:5, about:'הקצב הרגיל של המוקד'},
+  {n:'מוקדן בכיר',   gap:[15,22], max:5, ring:45, heavy:1.4,  units:5, about:'שיחות צפופות, יותר אירועים חמורים'},
+  {n:'אחראי משמרת', gap:[10,16], max:6, ring:32, heavy:1.9,  units:6, about:'לחץ של ערב חירום. רק לשורדים'}
+];
+let lvMax = 1; try{ lvMax = Math.max(1, Math.min(LEVELS.length, +localStorage.getItem('moked.lvl') || 1)); }catch(e){}
+const LV = () => LEVELS[S && S.lv != null ? S.lv : 1];
+let RING_LIMIT = 60;            // seconds before a caller gives up; set by the level when a shift starts
 
 /* ================= HELPERS ================= */
 const $ = s => document.querySelector(s);
@@ -1432,7 +1448,14 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden && S &
 /* ================= START SCREEN ================= */
 let selD = 0, selC = 0, selOp = 'm', selShift = 'e';
 try{ const m = localStorage.getItem('moked.map'); if(m) document.getElementById('optMap').value = m; }catch(e){}
-function renderStart(){
+function renderLevels(){
+  const sel = $('#optLevel'); if(!sel) return; const keep = sel.value;
+  sel.innerHTML = LEVELS.map((l,i) => `<option value="${i}" ${i >= lvMax ? 'disabled' : ''}>${i+1}. ${l.n}${i >= lvMax ? ' 🔒 נפתח עם ציון 70 ברמה ' + i : ' · ' + l.about}</option>`).join('');
+  let v = keep !== '' && +keep < lvMax ? +keep : null;
+  if(v == null){ try{ const st = localStorage.getItem('moked.lvlSel'); if(st != null && +st < lvMax) v = +st; }catch(e){} }
+  sel.value = String(v == null ? Math.min(1, lvMax-1) : v);
+}
+function renderStart(){ renderLevels();
   $('#districts').innerHTML = DISTRICTS.map((d,i) =>
     `<button type="button" data-d="${i}" aria-pressed="${i===selD}"><b>${esc(d.name)}</b><span>${esc(d.sub)}</span></button>`).join('');
   const d = DISTRICTS[selD];
@@ -1510,7 +1533,7 @@ function startShift(district, city){
   S = {
     district, city, nodes, ctl:district.ctl, t:0, over:false,
     calls:[], active:null, incs:[], rec:[], lineNo:0,
-    shift:SHIFTS[selShift], pool:SCEN.filter(sc => !SHIFT_ONLY[sc.t] || SHIFT_ONLY[sc.t].indexOf(selShift) >= 0), deck:[], nextCall:3, ringT:0, uiT:0, chatAt:12, civ:[]
+    lv:+($('#optLevel').value || 0), shift:SHIFTS[selShift], pool:SCEN.filter(sc => !SHIFT_ONLY[sc.t] || SHIFT_ONLY[sc.t].indexOf(selShift) >= 0), deck:[], nextCall:3, ringT:0, uiT:0, chatAt:12, civ:[]
   };
   { const typed = ($('#opName').value || '').trim().slice(0,12); S.op = {g:selOp, name: typed || pick(OPS[selOp])}; }
   S.graph = buildGraph(nodes);
@@ -1522,7 +1545,8 @@ function startShift(district, city){
     return {crew:makeCrew(d), cs:d.cs, type:d.type, kind: d.w===2 ? 'van' : /אופנוען/.test(d.type) ? 'moto' : 'car', ang:0, speed:d.speed, w:d.w, node:ni, x:nodes[ni].x, y:nodes[ni].y, state:'free', path:[], inc:null, sel:false, urgent:false};
   });
   for(let i=0;i<14;i++){ const a = Math.floor(Math.random()*nodes.length), b = pick([...S.graph.adj[a]]); S.civ.push({a, b, t:Math.random(), sp:rnd(1.6,2.6)}); }
-  $('#hCity').textContent = city.name; $('#hDist').textContent = district.name + ' · ' + city.sub;
+  $('#hCity').textContent = city.name; $('#hDist').textContent = district.name + ' · ' + city.sub + ' · רמה ' + (S.lv+1);
+  RING_LIMIT = LV().ring; S.nextCall = S.lv === 0 ? 5 : 3; try{ localStorage.setItem('moked.lvlSel', String(S.lv)); }catch(e){}
   $('#mapTitle').textContent = 'מפת גזרה · ' + city.name;
   $('#netName').textContent = S.ctl + ' ⇄ ' + city.radio;
   $('#log').innerHTML = ''; $('#start').classList.add('hidden'); $('#end').classList.add('hidden'); $('#game').classList.remove('hidden');
@@ -1552,9 +1576,9 @@ function tick(dt){
   S.t += dt;
   if(S.t >= SHIFT_LEN){ endShift(); return; }
 
-  if(S.t >= S.nextCall && S.calls.length < 4){
+  if(S.t >= S.nextCall && S.calls.length < LV().max){
     spawnCall();
-    S.nextCall = S.t + rnd(22,30) - (S.t/SHIFT_LEN)*10;
+    S.nextCall = S.t + rnd(LV().gap[0], LV().gap[1]) - (S.t/SHIFT_LEN)*LV().gap[0]*0.35;
   }
   let ringing = false;
   for(const c of S.calls.slice()){
@@ -1658,7 +1682,12 @@ function spawnVeh(inc, k){
 
 /* ================= CALLS ================= */
 function spawnCall(){
-  if(!S.deck.length) S.deck = shuffle(S.pool);
+  if(!S.deck.length){                                       // the level sets how many severe incidents come up
+    const h = LV().heavy, sev = S.pool.filter(sc => sc.pri===1);
+    let d = S.pool.filter(sc => sc.pri!==1 || Math.random() < Math.min(1, h));
+    if(h > 1) d = d.concat(sev.filter(() => Math.random() < h - 1));
+    S.deck = shuffle(d.length ? d : S.pool);
+  }
   const sc = S.deck.pop(), ni = Math.floor(Math.random()*S.nodes.length), node = S.nodes[ni];
   const st = pick(node.s.length ? node.s : S.city.streets);
   const num = Math.floor(rnd(400,899));
@@ -2562,11 +2591,17 @@ function endShift(){ unitCard(null); $('#crewReq').classList.add('hidden'); CREW
   if(CINE){ CINE.done = null; endCine(); }
   S.over = true; cancelAnimationFrame(raf); hush(); ambience(false); keepAwake(false); $('#quickAns').classList.add('hidden');
   const a = avg(), n = S.rec.length, g = gradeOf(a);
+  let up = '';                                              // a good shift opens the next level
+  if(a != null && a >= 70 && n >= 3 && S.lv + 1 === lvMax && lvMax < LEVELS.length){
+    lvMax++; try{ localStorage.setItem('moked.lvl', String(lvMax)); localStorage.setItem('moked.lvlSel', String(lvMax-1)); }catch(e){}
+    up = `<div class="lvup">🎖️ רמה ${lvMax} נפתחה: ${LEVELS[lvMax-1].n}<small>${LEVELS[lvMax-1].about}</small></div>`;
+    renderLevels();
+  } else if(a != null && a < 70 && S.lv + 1 === lvMax && lvMax < LEVELS.length) up = `<div class="lvnext">לפתיחת רמה ${lvMax+1} צריך ציון 70 לפחות במשמרת ברמה ${lvMax}, עם 3 אירועים לפחות.</div>`;
   const rows = S.rec.map((r,i) => `<details class="er ${r.score>=85?'hi':r.score>=60?'mid':'lo'}"><summary><span class="eno">${r.no ? 'אירוע ' + esc(r.no.replace('E-','')) : ''}</span><span class="et">${esc(r.title)}</span><span class="es">${r.score} נק׳</span></summary>
     <div class="ed">${(r.parts||[]).map(p => p.max==null ? `<p class="lesson">${esc(p.txt)}</p>` : `<div class="pr"><span class="pk">${esc(p.k)}</span><span class="pb"><i style="width:${p.max ? Math.round(p.got/p.max*100) : 0}%"></i></span><span class="pv">${p.got}/${p.max}</span><small>${esc(p.txt||'')}</small></div>`).join('')}</div></details>`).join('');
   $('#endCard').innerHTML = `<div class="card-head"><h2>סיכום ${S.shift.name} · ${esc(S.city.name)}</h2><button type="button" class="x" id="btnClose" aria-label="סגירת הסיכום">✕</button></div>
     <div class="card-in"><div class="scoreline"><span class="big">${a==null ? '–' : a}<small> מתוך 100</small></span><span class="grade">${g[0]}</span></div>
-    <p class="rank">${g[1]} · ${n} אירועים · ${S.units.length} צוותים</p>
+    <p class="rank">רמה ${S.lv+1} · ${LEVELS[S.lv].n} · ${g[1]} · ${n} אירועים · ${S.units.length} צוותים</p>${up}
     <div class="actions"><button class="go" id="btnAgain" type="button">משמרת חדשה</button><button class="ghost" id="btnHome" type="button">סיום וחזרה לבחירת עיר</button></div>
     <div class="tblwrap"><p class="ehint">לחיצה על אירוע מציגה את פירוט הניקוד</p>${rows || '<p class="ehint">אין אירועים לסיכום.</p>'}</div></div>`;
   $('#end').classList.remove('hidden');
