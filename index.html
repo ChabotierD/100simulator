@@ -167,13 +167,6 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .qrow.held{border-style:dashed}
 .qrow.held .led{background:var(--blue);box-shadow:0 0 10px var(--blue);animation:none}
 .qrow.held button{background:linear-gradient(180deg,#4d95ff,#1c5fe0);color:#fff}
-@media (max-width:900px){
-  .grid{padding-bottom:20px}
-  #quickAns{bottom:auto;top:max(8px,env(safe-area-inset-top))}                 /* at the top on phones, clear of the call buttons */
-  #call{overflow:visible}
-  .call-foot{position:sticky;bottom:0;z-index:5;background:linear-gradient(180deg,#0f2148,#0a1632);box-shadow:0 -10px 18px rgba(3,8,20,.75)}   /* dispatch and hang-up stay on screen while scrolling the call */
-}
-@media (max-width:900px){ .top{gap:6px 10px;padding:6px 12px} .top img{width:34px} .top .where{flex:1 1 auto;font-size:17px} .top .where small{display:none} .stat{margin-inline-start:0;min-width:0} .stat span{font-size:10px} .stat b{font-size:17px} .top .tbtn{padding:5px 10px;font-size:13px;margin:0} }
 
 /* call */
 #callPanel{flex:1}
@@ -334,15 +327,93 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .card td:last-child{text-align:left;font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap}
 .card td small{display:block;color:var(--muted)}
 
-@media (max-width:900px){
-  html,body{height:auto}
-  #game{height:auto}
-  .grid{grid-template-columns:1fr}
-  .mapwrap{flex:none;height:66vw;min-height:260px}
-  #logPanel .body{max-height:280px}
-  .stat{min-width:54px} .stat b{font-size:19px}
-  .top .where{font-size:18px}
-}
+/* ---------- phones and small screens: one screen at a time, switched from a tab bar ---------- */
+#tabbar{display:none}
+html.compact-mode,html.compact-mode body{height:100%;overflow:hidden;overscroll-behavior:none}
+#game.compact{height:100%;height:100dvh}
+#game.compact .top{flex-wrap:nowrap;gap:10px;padding:5px 10px;padding-top:max(5px,env(safe-area-inset-top));padding-inline:max(10px,env(safe-area-inset-left))}
+#game.compact .top img{width:30px}
+#game.compact .top .where{flex:1 1 auto;min-width:0;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#game.compact .top .where small{display:none}
+#game.compact .stat{margin:0;min-width:0}
+#game.compact .stat.cnt{display:none}
+#game.compact .stat span{font-size:10px}
+#game.compact .stat b{font-size:16px}
+#game.compact .top .tbtn{padding:4px 9px;font-size:12.5px;margin:0;white-space:nowrap}
+#game.compact .grid{display:flex;flex-direction:column;gap:8px;padding:8px;padding-inline:max(8px,env(safe-area-inset-left)) max(8px,env(safe-area-inset-right));flex:1 1 auto;min-height:0}
+#game.compact .col{display:contents}
+#game.compact .panel{display:none;--ch:9px}
+#game.compact .panel.on{display:flex}
+#game.compact .panel > h2{padding:8px 12px 6px;font-size:14px}
+#game.compact .panel .body{padding:8px 10px 10px}
+#game.compact #callPanel.on,#game.compact #mapPanel.on,#game.compact #unitPanel.on,#game.compact #logPanel.on{flex:1 1 0;min-height:0}
+#game.compact #queuePanel:not(.has){display:none}
+#game.compact #queuePanel{flex:none}
+#game.compact #queuePanel .body{max-height:116px}
+#game.compact #incPanel{flex:0 1 auto;max-height:38%}
+#game.compact #incPanel .body{max-height:none}
+#game.compact .mapwrap{flex:1 1 auto;min-height:0;height:auto;margin:2px 8px 8px}
+#game.compact #logPanel .body{max-height:none}
+#game.compact #call{flex:1 1 auto;min-height:0}
+#game.compact .call-scroll{padding:8px 10px}
+#game.compact .transcript{height:112px}
+#game.compact .callmeta{margin-bottom:6px}
+#game.compact .loc{padding:6px 10px;margin-bottom:6px}
+#game.compact .tabs{margin:8px 0 5px}
+#game.compact .qs button{padding:9px 10px}
+#game.compact .call-foot{padding:8px 10px 8px;background:linear-gradient(180deg,#0f2148,#0a1632);box-shadow:0 -10px 18px rgba(3,8,20,.6)}
+#game.compact .exts{margin-bottom:6px}
+#game.compact .exts button{flex-direction:row;justify-content:center;gap:5px;padding:7px 4px}
+#game.compact .exts button b{font-size:14px}
+#game.compact .hint{min-height:0;margin:4px 0 0}
+#game.compact .hint:empty{display:none}
+#game.compact .endcall{margin-top:6px;padding:8px}
+#game.compact .xfer button{padding:7px 4px}
+/* the forces, right inside the call: tap to pick, without leaving the screen */
+.chips{display:none}
+#game.compact .chips{display:flex;gap:6px;overflow-x:auto;margin:0 -2px 7px;padding:1px 2px 3px;scrollbar-width:none}
+#game.compact .chips::-webkit-scrollbar{display:none}
+.chip{flex:none;display:flex;flex-direction:column;align-items:center;min-width:58px;padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.04);line-height:1.15}
+.chip b{font-size:16px;font-weight:900;font-variant-numeric:tabular-nums}
+.chip span{font-size:11px}
+.chip.free span{color:var(--ok)} .chip.enroute span{color:var(--accent)} .chip.scene span{color:#ff7d86}
+.chip[aria-pressed="true"]{border-color:var(--brand);background:rgba(47,214,255,.16);box-shadow:0 0 12px rgba(47,214,255,.35)}
+.chip:disabled{opacity:.45;cursor:default}
+.chips-label{display:none}
+#game.compact .chips-label{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin:0 0 4px}
+/* tab bar */
+#game.compact #tabbar{display:flex;flex:none;border-top:1px solid #26467e;background:linear-gradient(180deg,#0d1d3f,#060f24);padding-bottom:env(safe-area-inset-bottom);padding-inline:env(safe-area-inset-left) env(safe-area-inset-right)}
+#tabbar button{flex:1;background:none;border:0;padding:7px 2px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;font-weight:500;color:var(--muted);position:relative}
+#tabbar svg{width:23px;height:23px}
+#tabbar button[aria-pressed="true"]{color:#fff}
+#tabbar button[aria-pressed="true"]::before{content:"";position:absolute;top:-1px;inset-inline:22%;height:3px;border-radius:0 0 3px 3px;background:var(--brand);box-shadow:0 0 10px var(--brand)}
+#tabbar button[aria-pressed="true"] svg{color:var(--brand);filter:drop-shadow(0 0 6px rgba(47,214,255,.6))}
+#tabbar .badge{position:absolute;top:3px;left:calc(50% + 4px);min-width:18px;height:18px;border-radius:9px;background:var(--blue);color:#fff;font-size:11px;font-weight:700;font-style:normal;line-height:18px;text-align:center;padding:0 5px;display:none}
+#tabbar .badge.show{display:block}
+#tabbar .badge.hot{background:var(--crit);box-shadow:0 0 10px var(--crit);animation:pulse 1s ease-in-out infinite}
+#tabbar .badge.ok{background:#1f8f63}
+/* the ringing banner sits right under the header, over whatever screen is open */
+html.compact-mode #quickAns{top:calc(var(--hdr,52px) + 6px);bottom:auto;left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));transform:none;justify-content:space-between;border-radius:12px;padding:8px 10px 8px 14px}
+html.compact-mode [dir="rtl"] #quickAns,[dir="rtl"] html.compact-mode #quickAns{padding:8px 14px 8px 10px}
+html.compact-mode #quickAns span{flex:1}
+/* sideways: the same screens, laid out wide */
+#game.compact.land .top{padding-top:3px;padding-bottom:3px}
+#game.compact.land .shiftbar{height:2px}
+#game.compact.land .grid{flex-direction:row;padding-top:6px;padding-bottom:6px}
+#game.compact.land #queuePanel{flex:0 0 31%}
+#game.compact.land.busy #queuePanel{display:none}          /* sideways, an open call gets the whole width; new lines ring in the banner */
+#game.compact.land #queuePanel .body{max-height:none}
+#game.compact.land #call{flex-direction:row}
+#game.compact.land .call-scroll{flex:1.15 1 0}
+#game.compact.land .call-foot{flex:1 1 0;overflow:auto;border-top:0;border-inline-start:1px solid var(--line);box-shadow:none}
+#game.compact.land .transcript{height:96px}
+#game.compact.land #incPanel{flex:0 0 38%;max-height:none}
+#game.compact.land #units{display:grid;grid-template-columns:1fr 1fr;gap:6px;align-content:start}
+#game.compact.land .unit{margin:0}
+#game.compact.land #tabbar button{flex-direction:row;justify-content:center;gap:7px;padding:5px 2px 4px;font-size:13px}
+#game.compact.land #tabbar svg{width:19px;height:19px}
+#game.compact.land #tabbar .badge{position:static;order:3;margin-inline-start:2px}
+#game.compact #incPanel{order:2}
 @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
 </style>
 </head>
@@ -425,7 +496,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
     <img src="logo.png" alt="">
     <div class="where"><span id="hCity"></span><small id="hDist"></small></div>
     <div class="stat"><span>שעה</span><b id="hClock">--:--</b></div>
-    <div class="stat"><span>אירועים שטופלו</span><b id="hCount">0</b></div>
+    <div class="stat cnt"><span>אירועים שטופלו</span><b id="hCount">0</b></div>
     <div class="stat"><span>ציון משמרת</span><b id="hScore">–</b></div>
     <button class="tbtn" id="btnMute" aria-pressed="false">השתק</button>
     <button class="tbtn" id="btnEnd">סיום משמרת</button>
@@ -434,40 +505,46 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 
   <div class="grid">
     <div class="col">
-      <section class="panel">
+      <section class="panel" id="queuePanel" data-views="call">
         <h2><span>קווים נכנסים</span><span id="qCount" class="num"></span></h2>
         <div class="body" id="queue"></div>
       </section>
-      <section class="panel" id="callPanel">
+      <section class="panel" id="callPanel" data-views="call">
         <h2><span>שיחת חירום</span><span id="callLine"></span></h2>
         <div class="body" id="call"></div>
       </section>
     </div>
 
     <div class="col">
-      <section class="panel" style="flex:1">
+      <section class="panel" id="mapPanel" data-views="map" style="flex:1">
         <h2><span id="mapTitle">מפת גזרה</span>
           <span class="legend"><span><i style="background:var(--ok)"></i>זמין</span><span><i style="background:var(--accent)"></i>בדרך</span><span><i style="background:var(--crit)"></i>אירוע</span></span>
         </h2>
         <div class="mapwrap"><canvas id="map" aria-label="מפת העיר עם מיקום הכוחות והאירועים"></canvas></div>
       </section>
-      <section class="panel" id="incPanel">
+      <section class="panel" id="incPanel" data-views="map units">
         <h2><span>אירועים פתוחים</span><span id="incCount"></span></h2>
         <div class="body" id="incs"></div>
       </section>
     </div>
 
     <div class="col">
-      <section class="panel">
+      <section class="panel" id="unitPanel" data-views="units">
         <h2><span>כוחות בגזרה</span><span id="selCount"></span></h2>
         <div class="body" id="units"></div>
       </section>
-      <section class="panel" id="logPanel">
+      <section class="panel" id="logPanel" data-views="radio">
         <h2><span>רשת הקשר</span><span id="netName"></span></h2>
         <div class="body"><div class="log" id="log"></div></div>
       </section>
     </div>
   </div>
+  <nav id="tabbar" aria-label="מסכי המשחק">
+    <button type="button" data-view="call" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z" fill="currentColor"/></svg><span>שיחות</span><i class="badge" id="bCall"></i></button>
+    <button type="button" data-view="map" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" fill="currentColor"/></svg><span>מפה</span><i class="badge" id="bMap"></i></button>
+    <button type="button" data-view="units" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11l1.6-4.4A2 2 0 0 1 8.5 5h7a2 2 0 0 1 1.9 1.6L19 11h1a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-1a2 2 0 0 1-4 0H9a2 2 0 0 1-4 0H4a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1zm2.2 0h9.6l-1.1-3.4a.6.6 0 0 0-.6-.4H8.9a.6.6 0 0 0-.6.4zM7 13.5a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4zm10 0a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4zM10 2h4v2h-4z" fill="currentColor"/></svg><span>כוחות</span><i class="badge ok" id="bUnits"></i></button>
+    <button type="button" data-view="radio" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2zm1 3v4h8v-4zm1 6.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm6-.5v1h2v-1zm0 2v1h2v-1zM15.3 2.3l1.4 1.4L13.4 7h-2.8z" fill="currentColor"/></svg><span>קשר</span><i class="badge" id="bRadio"></i></button>
+  </nav>
 </div>
 
 <button type="button" id="quickAns" class="hidden"><i class="led"></i><span id="quickTxt"></span><b>מענה</b></button>
@@ -1136,6 +1213,53 @@ function ambience(on){
 }
 function ambLevel(v){ try{ if(amb) amb.g.gain.value = v; }catch(e){} }
 
+/* ================= SCREEN LAYOUT ================= */
+// Big screens show every panel at once. Phones and small windows show one screen at a time (calls, map, forces, radio), switched from a tab bar.
+let view = 'call', compact = false, land = false, mapOn = true;
+function layout(){
+  const g = $('#game'), w = window.innerWidth, h = window.innerHeight, playing = !g.classList.contains('hidden');
+  compact = w <= 900 || h <= 520; land = compact && w > h;
+  g.classList.toggle('compact', compact); g.classList.toggle('land', land);
+  document.documentElement.classList.toggle('compact-mode', compact && playing);
+  document.querySelectorAll('#game .panel[data-views]').forEach(p => {
+    const on = !compact || p.dataset.views.split(' ').includes(view) && !(land && p.id==='incPanel' && view==='units' && false);
+    p.classList.toggle('on', on);
+  });
+  document.querySelectorAll('#tabbar [data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view===view)));
+  mapOn = !compact || view==='map';
+  if(playing){
+    document.documentElement.style.setProperty('--hdr', $('#game .top').getBoundingClientRect().bottom + 'px');
+    if(mapOn && S && !S.over){ sizeCanvas(); draw(); }
+  }
+}
+function setView(v){
+  if(view === v) return;
+  view = v; if(v==='radio' && S) S.unread = 0;
+  layout(); tabBadges(); if(S) renderQueue();
+  if(v==='units' || v==='map') renderIncs();
+}
+$('#tabbar').addEventListener('click', e => { const b = e.target.closest('[data-view]'); if(b) setView(b.dataset.view); });
+window.addEventListener('orientationchange', () => setTimeout(layout, 250));
+function tabBadges(){
+  if(!S || !compact) return;
+  const set = (id, n, cls) => { const el = $('#'+id); el.textContent = n || ''; el.className = 'badge' + (n ? ' show' : '') + (cls ? ' ' + cls : ''); };
+  const ringing = S.calls.filter(c => !c.held).length, held = S.calls.length - ringing;
+  set('bCall', view==='call' ? (held || '') : (ringing + held || ''), ringing && view!=='call' ? 'hot' : '');
+  const want = S.incs.some(i => (i.missing||[]).some(k => !i.crews.includes(k)));
+  set('bMap', S.incs.length, want ? 'hot' : '');
+  set('bUnits', S.units.filter(u => u.state==='free').length, 'ok');
+  set('bRadio', view==='radio' ? 0 : Math.min(99, S.unread||0), '');
+}
+// Keep the screen on during a shift, and buzz the phone when a new line rings.
+let wake = null;
+function keepAwake(on){
+  try{
+    if(on && navigator.wakeLock && !document.hidden && !wake) navigator.wakeLock.request('screen').then(l => { wake = l; l.addEventListener('release', () => { wake = null; }); }).catch(() => {});
+    if(!on && wake){ wake.release(); wake = null; }
+  }catch(e){}
+}
+document.addEventListener('visibilitychange', () => { if(!document.hidden && S && !S.over) keepAwake(true); });
+
 /* ================= START SCREEN ================= */
 let selD = 0, selC = 0, selOp = 'm', selShift = 'e';
 function renderStart(){
@@ -1224,7 +1348,8 @@ function startShift(district, city){
   $('#log').innerHTML = ''; $('#start').classList.add('hidden'); $('#end').classList.add('hidden'); $('#game').classList.remove('hidden');
   $('#btnMute').setAttribute('aria-pressed', String(!A.sound)); $('#btnMute').textContent = A.sound ? 'השתק' : 'בטל השתקה';
   window.scrollTo(0,0);
-  renderIncs(); sizeCanvas(); renderQueue(); renderCall(); renderUnits(); header();
+  view = 'call'; S.unread = 0; layout();
+  renderIncs(); sizeCanvas(); renderQueue(); renderCall(); renderUnits(); header(); keepAwake(true);
   log('ops', S.ctl, 'כל כוחות ' + city.radio + ' כאן ' + S.ctl + ', תחילת ' + S.shift.name + '. בדיקת קשר.');
   log('radio', rname(S.units[0]), S.ctl + ' ' + rname(S.units[0]) + ', שומע היטב.');
   startCine({intro:true, media:'op-' + S.op.g + '.mp4', loop:true, dur:4.2, kicker:district.name + ' · ' + city.sub, title:S.shift.name + ' · ' + city.name,
@@ -1354,7 +1479,8 @@ function spawnCall(){
     phone:'05' + Math.floor(rnd(0,9)) + '-XXX-XX' + String(Math.floor(rnd(10,99))),
     lines:[], q:[], rev:{}, pressed:{}, ext:{}, fresh:null, nextAt:0, name:pick(NAMES[sc.g]), liveI:0, liveAt:0, rate:(sc.pri===1 ? 1.1 : 1) + rnd(-0.04,0.04),
     x:clamp(node.x + rnd(-5,5), 4, 96), y:clamp(node.y + rnd(-5,5), 4, 96)});
-  S.ringT = 0; renderQueue();
+  S.ringT = 0; renderQueue(); tabBadges();
+  try{ if(compact && navigator.vibrate) navigator.vibrate([140,80,140]); }catch(e){}
 }
 function fill(c, txt){ return txt.replace(/\{st\}/g, stName(c.st)); }
 // Leaves the current call so another line can be answered: a call that already has forces on the way is closed, any other waits on hold.
@@ -1380,7 +1506,8 @@ function answer(i){
     c.q = c.sc.o.map(t => ({who: t.charAt(0)==='(' ? 'fx' : 'caller', text:fill(c,t)}));
     c.nextAt = S.t + (A.voice && A.he ? 2.4 : 0.6);
   }
-  renderQueue(); renderCall(); renderUnits();
+  if(compact) setView('call');
+  renderQueue(); renderCall(); renderUnits(); tabBadges();
 }
 function quickAnswer(){ if(!S || S.over || CINE) return; const i = S.calls.findIndex(c => !c.held); if(i >= 0) answer(i); }
 // What can be said right now: the address, this incident's own questions whose trigger was already heard, a few general ones, then instructions.
@@ -1594,8 +1721,10 @@ function header(){
   $('#hCount').textContent = S.rec.length;
   const a = avg(); $('#hScore').textContent = a==null ? '–' : a;
   $('#shiftFill').style.width = (S.t/SHIFT_LEN*100).toFixed(1) + '%';
+  tabBadges();
 }
 function log(cls, who, text, score){
+  if(S && view!=='radio') S.unread = (S.unread||0) + 1;
   const el = document.createElement('div'); el.className = 'lg ' + cls;
   el.innerHTML = (score!=null ? `<span class="sc">${score}</span>` : '') + `<time>${clock()}</time><b>${esc(who)}</b>${esc(text)}`;
   const box = $('#log'); box.prepend(el);
@@ -1605,9 +1734,10 @@ function log(cls, who, text, score){
 /* ================= RENDER ================= */
 function renderQueue(){
   const q = $('#queue'), ringing = S.calls.filter(c => !c.held);
+  $('#queuePanel').classList.toggle('has', S.calls.length > 0);
   $('#qCount').textContent = S.calls.length ? S.calls.length + ' ממתינות' : '';
   const qa = $('#quickAns');
-  if(ringing.length && !CINE){ qa.classList.remove('hidden'); qa.classList.toggle('hot', ringing[0].wait > RING_LIMIT*0.6);
+  if(ringing.length && !CINE && !(compact && view==='call' && !(land && S.active))){ qa.classList.remove('hidden');   // on the calls screen the line list itself is on view qa.classList.toggle('hot', ringing[0].wait > RING_LIMIT*0.6);
     $('#quickTxt').textContent = 'קו ' + ringing[0].line + ' מצלצל' + (ringing.length > 1 ? ' ועוד ' + (ringing.length-1) : ''); }
   else qa.classList.add('hidden');
   if(!S.calls.length){ q.innerHTML = '<p class="empty">אין שיחות ממתינות.</p>'; return; }
@@ -1631,13 +1761,14 @@ function callDur(c){ const d = Math.max(0, Math.floor(S.t - c.answeredAt)); retu
 function tabList(c){ const all = openQuestions(c), ins = c.tab==='i'; return {all, list: all.filter(q => !!q.ins === ins)}; }
 function renderCall(){
   const c = S.active, box = $('#call');
+  $('#game').classList.toggle('busy', !!c);
   $('#callLine').textContent = (c ? 'קו ' + c.line + ' · ' : '') + (S.op.g==='f' ? 'מוקדנית ' : 'מוקדן ') + S.op.name;
   if(!c){ box.innerHTML = '<div class="idle"><video class="idlevid" src="op-' + S.op.g + '.mp4" autoplay muted loop playsinline></video><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><b>המוקד מאזין</b><span>כשקו מצלצל, לוחצים על ״מענה״</span></div>'; return; }
   const names = {caller:'מתקשר', op:esc(S.op.name), fx:''};
   const tr = c.lines.map(l => `<div class="ln ${l.who}"><b>${names[l.who]}</b><span class="tx">${esc(l.text)}</span><time>${(l.ts||'').slice(3)}</time></div>`).join('');
   const exact = c.rev.addr && !c.sc.a, sent = !!(c.inc && S.incs.includes(c.inc));
   const t = tabList(c), nq = t.all.filter(q => !q.ins).length, ni = t.all.length - nq;
-  const keep = box.querySelector('.call-scroll'), top = keep ? keep.scrollTop : 0;
+  const keep = box.querySelector('.call-scroll'), top = keep ? keep.scrollTop : 0, ch = box.querySelector('.chips'), chx = ch ? ch.scrollLeft : 0, ft = box.querySelector('.call-foot'), fty = ft ? ft.scrollTop : 0;
   box.innerHTML = `<div class="call-scroll">
       <div class="callmeta"><span class="rec">מוקלט <span id="callTimer">${callDur(c)}</span></span><span>אירוע ${c.no}</span><span dir="ltr">${c.phone}</span></div>
       <div class="loc ${exact?'ok':'warn'}"><span>${exact ? 'כתובת מאומתת' : 'איכון משוער'}</span><b>${esc(exact ? addrText(c) : stName(c.st) + ', ' + c.hood)}</b></div>
@@ -1647,6 +1778,8 @@ function renderCall(){
     </div>
     <div class="call-foot">
       <div class="exts">${Object.keys(EXT).map(k => `<button type="button" data-ext="${k}" aria-pressed="${sent ? c.inc.crews.includes(k) : !!c.ext[k]}"><b>${k}</b>${EXT[k].crew}</button>`).join('')}</div>
+      <div class="chips-label"><span>${sent ? 'כוחות לתגבור' : 'בחירת כוחות'}</span><span>${S.units.filter(u => u.sel).length ? S.units.filter(u => u.sel).length + ' נבחרו' : S.units.filter(u => u.state==='free').length + ' זמינים'}</span></div>
+      <div class="chips">${S.units.map((u,i) => `<button type="button" class="chip ${u.state}" data-uc="${i}" aria-pressed="${u.sel}" ${u.state!=='free'?'disabled':''}><b>${u.cs}</b><span>${{free:'זמין', enroute:'בדרך', scene:'בזירה'}[u.state]}</span></button>`).join('')}</div>
       <div class="dec"><button type="button" class="u" data-act="u">${sent ? 'תגבור דחוף' : 'שיגור דחוף'}</button><button type="button" class="r" data-act="r">${sent ? 'תגבור רגיל' : 'שיגור רגיל'}</button></div>
       ${sent ? `<button type="button" class="endcall" data-act="end" ${c.ending?'disabled':''}>סיום שיחה · באירוע: ${esc(c.inc.units.map(u => u.cs).join(', '))}</button>` :
       `<p class="sub">בלי ניידת</p>
@@ -1659,6 +1792,7 @@ function renderCall(){
       <p class="hint" role="status">${esc(c.hint||'')}</p>
     </div>`;
   const sc2 = box.querySelector('.call-scroll'); if(sc2) sc2.scrollTop = top;
+  const ch2 = box.querySelector('.chips'); if(ch2) ch2.scrollLeft = chx; const ft2 = box.querySelector('.call-foot'); if(ft2) ft2.scrollTop = fty;
   const el = $('#tr'); if(el) el.scrollTop = el.scrollHeight;
 }
 document.addEventListener('keydown', e => {          // number keys ask the matching question
@@ -1667,6 +1801,7 @@ document.addEventListener('keydown', e => {          // number keys ask the matc
   const q = tabList(S.active).list[n-1]; if(q){ e.preventDefault(); ask(q.id); }
 });
 $('#call').addEventListener('click', e => {
+  const uc = e.target.closest('[data-uc]'); if(uc){ const u = S.units[+uc.dataset.uc]; if(u && u.state==='free'){ u.sel = !u.sel; if(S.active) S.active.hint = ''; renderUnits(); renderCall(); } return; }
   const tb = e.target.closest('[data-tab]'); if(tb && S.active){ S.active.tab = tb.dataset.tab; renderCall(); return; }
   const a = e.target.closest('[data-ask]'); if(a){ ask(a.dataset.ask); return; }
   const x = e.target.closest('[data-ext]'); if(x && S.active){ const c = S.active, k = x.dataset.ext; if(c.inc && S.incs.includes(c.inc)) addCrew(c.inc, k); else c.ext[k] = !c.ext[k]; c.hint = ''; renderCall(); return; }
@@ -1700,6 +1835,7 @@ $('#incs').addEventListener('click', e => {
     reinforce(inc, sel, inc.urgent); renderUnits(); if(S.active) renderCall(); }
 });
 function renderUnits(){
+  if(S && S.active && compact && !renderUnits.busy){ renderUnits.busy = true; try{ renderCall(); }finally{ renderUnits.busy = false; } }
   const lab = {free:'זמין', enroute:'בדרך', scene:'בזירה'};
   $('#units').innerHTML = S.units.map((u,i) =>
     `<button type="button" class="unit ${u.state}" data-u="${i}" aria-pressed="${u.sel}" ${u.state!=='free'?'disabled':''}>
@@ -1722,7 +1858,7 @@ function sizeCanvas(){
   CW = Math.max(200, r.width); CH = Math.max(160, r.height);
   cv.width = Math.round(CW*dpr); cv.height = Math.round(CH*dpr); cx.setTransform(dpr,0,0,dpr,0,0); mapLayer = null;
 }
-window.addEventListener('resize', () => { if(S && !S.over){ sizeCanvas(); draw(); if(CINE){ sizeCine(); if(CINE.media) ccv.classList.toggle('hidden', !CINE.narrow); } } });
+window.addEventListener('resize', () => { layout(); if(S && !S.over){ sizeCanvas(); draw(); if(CINE){ sizeCine(); if(CINE.media) ccv.classList.toggle('hidden', !CINE.narrow); } } });
 const PX = x => 34 + x/100*(CW-68), PY = y => 26 + y/100*(CH-64);
 function box(x, y, w, h, r){ cx.beginPath(); if(cx.roundRect) cx.roundRect(x,y,w,h,r); else cx.rect(x,y,w,h); }
 
@@ -1784,7 +1920,7 @@ function buildMapLayer(){
   return c;
 }
 function draw(){
-  if(!S) return;
+  if(!S || !mapOn) return;                                   // the map is not on screen
   cx.shadowBlur = 0;
   if(!mapLayer) mapLayer = buildMapLayer();
   cx.drawImage(mapLayer, 0, 0, CW, CH);
@@ -2091,7 +2227,7 @@ function drawCine(c){
 function gradeOf(a){ return a==null ? ['–','לא טופלו אירועים במשמרת'] : a>=90 ? ['מצטיין','אפשר לסמוך עליך בלילה עמוס'] : a>=80 ? ['טוב מאוד','משמרת יציבה, עוד קצת דיוק'] : a>=70 ? ['טוב','הסיווג טוב, אפשר לאסוף יותר מידע'] : a>=55 ? ['מספיק','שואלים יותר ושולחים מדויק יותר'] : ['נכשל','כדאי לחזור על הנהלים ולנסות שוב']; }
 function endShift(){
   if(CINE){ CINE.done = null; endCine(); }
-  S.over = true; cancelAnimationFrame(raf); hush(); ambience(false); $('#quickAns').classList.add('hidden');
+  S.over = true; cancelAnimationFrame(raf); hush(); ambience(false); keepAwake(false); $('#quickAns').classList.add('hidden');
   const a = avg(), n = S.rec.length, g = gradeOf(a);
   const rows = S.rec.map(r => `<tr><td>${esc(r.title)}${r.note ? `<small>${esc(r.note)}</small>` : ''}</td><td>${r.score}</td></tr>`).join('');
   $('#endCard').innerHTML = `<div class="card-head"><h2>סיכום ${S.shift.name} · ${esc(S.city.name)}</h2><button type="button" class="x" id="btnClose" aria-label="סגירת הסיכום">✕</button></div>
@@ -2100,7 +2236,7 @@ function endShift(){
     <div class="actions"><button class="go" id="btnAgain" type="button">משמרת חדשה</button><button class="ghost" id="btnHome" type="button">סיום וחזרה לבחירת עיר</button></div>
     <div class="tblwrap"><table>${rows || '<tr><td>אין אירועים לסיכום.</td><td></td></tr>'}</table></div></div>`;
   $('#end').classList.remove('hidden');
-  const home = () => { $('#end').classList.add('hidden'); $('#game').classList.add('hidden'); $('#start').classList.remove('hidden'); window.scrollTo(0,0); };
+  const home = () => { $('#end').classList.add('hidden'); $('#game').classList.add('hidden'); $('#start').classList.remove('hidden'); layout(); window.scrollTo(0,0); };
   $('#btnClose').addEventListener('click', home);
   $('#btnHome').addEventListener('click', home);
   $('#btnAgain').addEventListener('click', () => { initAudio(); startShift(S.district, S.city); });
