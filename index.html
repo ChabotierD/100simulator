@@ -556,7 +556,7 @@ html.compact-mode #quickAns span{flex:1}
         <button type="button" class="ghost" id="btnVoiceTest">השמעת דוגמה</button>
       </div>
       <p class="voice-note" id="voiceNote"></p>
-      <p class="voice-note" id="buildTag" style="opacity:.6">גרסה 14.11 · 20:50 · רמות</p>
+      <p class="voice-note" id="buildTag" style="opacity:.6">גרסה 14.11 · 20:55 · רמות</p>
     </section>
 
     <button class="go" id="btnStart">כניסה למשמרת</button>
@@ -1148,14 +1148,14 @@ const SHIFT_ONLY = {'רכב נשרט בלילה':'m', 'מסיבה רועשת ב�
   'גניבת אופניים חשמליים בזמן אמת':'me', 'חשד לנהג שיכור':'en', 'פעוט נעול ברכב':'me', 'אזעקה בעסק סגור':'n', 'כלב משוטט':'me', 'איומים על נהג אוטובוס':'en', 'שוד בקיוסק':'en', 'חשד למעקב אחרי אישה':'en', 'תאונת עבודה באתר בנייה':'m'};
 const SHIFT_LEN = 420;          // real seconds
 // Levels: each one brings calls faster, more at once, callers who hang up sooner, and more severe incidents.
-// A level opens once the shift before it on the level below ends with 70 or more.
+// Every level can be chosen. Each phone keeps the player's own record: the level last played and every level passed (a shift of 70+).
 const LEVELS = [
   {n:'מתלמד',        gap:[34,44], max:2, ring:70, heavy:0.35, about:'שיחות מעטות, יותר זמן לחשוב'},
   {n:'מוקדן',        gap:[22,30], max:4, ring:60, heavy:1,    units:5, about:'הקצב הרגיל של המוקד'},
   {n:'מוקדן בכיר',   gap:[15,22], max:5, ring:45, heavy:1.4,  units:5, about:'שיחות צפופות, יותר אירועים חמורים'},
   {n:'אחראי משמרת', gap:[10,16], max:6, ring:32, heavy:1.9,  units:6, about:'לחץ של ערב חירום. רק לשורדים'}
 ];
-let lvMax = 1; try{ lvMax = Math.max(1, Math.min(LEVELS.length, +localStorage.getItem('moked.lvl') || 1)); }catch(e){}
+let lvPassed = []; try{ lvPassed = JSON.parse(localStorage.getItem('moked.lvlPassed') || '[]'); }catch(e){}
 const LV = () => LEVELS[S && S.lv != null ? S.lv : 1];
 let RING_LIMIT = 60;            // seconds before a caller gives up; set by the level when a shift starts
 
@@ -1450,10 +1450,10 @@ let selD = 0, selC = 0, selOp = 'm', selShift = 'e';
 try{ const m = localStorage.getItem('moked.map'); if(m) document.getElementById('optMap').value = m; }catch(e){}
 function renderLevels(){
   const sel = $('#optLevel'); if(!sel) return; const keep = sel.value;
-  sel.innerHTML = LEVELS.map((l,i) => `<option value="${i}" ${i >= lvMax ? 'disabled' : ''}>${i+1}. ${l.n}${i >= lvMax ? ' 🔒 נפתח עם ציון 70 ברמה ' + i : ' · ' + l.about}</option>`).join('');
-  let v = keep !== '' && +keep < lvMax ? +keep : null;
-  if(v == null){ try{ const st = localStorage.getItem('moked.lvlSel'); if(st != null && +st < lvMax) v = +st; }catch(e){} }
-  sel.value = String(v == null ? Math.min(1, lvMax-1) : v);
+  sel.innerHTML = LEVELS.map((l,i) => `<option value="${i}">${lvPassed.includes(i) ? '✓ ' : ''}${i+1}. ${l.n} · ${l.about}</option>`).join('');
+  let v = keep !== '' ? +keep : null;
+  if(v == null){ try{ const st = localStorage.getItem('moked.lvlSel'); if(st != null) v = +st; }catch(e){} }
+  sel.value = String(v == null ? 1 : v);
 }
 function renderStart(){ renderLevels();
   $('#districts').innerHTML = DISTRICTS.map((d,i) =>
@@ -2591,12 +2591,13 @@ function endShift(){ unitCard(null); $('#crewReq').classList.add('hidden'); CREW
   if(CINE){ CINE.done = null; endCine(); }
   S.over = true; cancelAnimationFrame(raf); hush(); ambience(false); keepAwake(false); $('#quickAns').classList.add('hidden');
   const a = avg(), n = S.rec.length, g = gradeOf(a);
-  let up = '';                                              // a good shift opens the next level
-  if(a != null && a >= 70 && n >= 3 && S.lv + 1 === lvMax && lvMax < LEVELS.length){
-    lvMax++; try{ localStorage.setItem('moked.lvl', String(lvMax)); localStorage.setItem('moked.lvlSel', String(lvMax-1)); }catch(e){}
-    up = `<div class="lvup">🎖️ רמה ${lvMax} נפתחה: ${LEVELS[lvMax-1].n}<small>${LEVELS[lvMax-1].about}</small></div>`;
+  let up = '';                                              // a good shift marks the level as passed on this phone
+  if(a != null && a >= 70 && n >= 3 && !lvPassed.includes(S.lv)){
+    lvPassed.push(S.lv); try{ localStorage.setItem('moked.lvlPassed', JSON.stringify(lvPassed)); }catch(e){}
+    const nx = S.lv + 1 < LEVELS.length ? ` · אפשר לנסות את רמה ${S.lv+2}: ${LEVELS[S.lv+1].n}` : ' · עברת את כל הרמות!';
+    up = `<div class="lvup">🎖️ עברת את רמה ${S.lv+1}: ${LEVELS[S.lv].n}<small>${nx.slice(3)}</small></div>`;
     renderLevels();
-  } else if(a != null && a < 70 && S.lv + 1 === lvMax && lvMax < LEVELS.length) up = `<div class="lvnext">לפתיחת רמה ${lvMax+1} צריך ציון 70 לפחות במשמרת ברמה ${lvMax}, עם 3 אירועים לפחות.</div>`;
+  } else if(a != null && a < 70 && !lvPassed.includes(S.lv)) up = `<div class="lvnext">כדי לעבור את רמה ${S.lv+1} צריך ציון 70 לפחות, עם 3 אירועים לפחות.</div>`;
   const rows = S.rec.map((r,i) => `<details class="er ${r.score>=85?'hi':r.score>=60?'mid':'lo'}"><summary><span class="eno">${r.no ? 'אירוע ' + esc(r.no.replace('E-','')) : ''}</span><span class="et">${esc(r.title)}</span><span class="es">${r.score} נק׳</span></summary>
     <div class="ed">${(r.parts||[]).map(p => p.max==null ? `<p class="lesson">${esc(p.txt)}</p>` : `<div class="pr"><span class="pk">${esc(p.k)}</span><span class="pb"><i style="width:${p.max ? Math.round(p.got/p.max*100) : 0}%"></i></span><span class="pv">${p.got}/${p.max}</span><small>${esc(p.txt||'')}</small></div>`).join('')}</div></details>`).join('');
   $('#endCard').innerHTML = `<div class="card-head"><h2>סיכום ${S.shift.name} · ${esc(S.city.name)}</h2><button type="button" class="x" id="btnClose" aria-label="סגירת הסיכום">✕</button></div>
