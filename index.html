@@ -239,7 +239,12 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 
 /* map */
 .mapwrap{flex:1;position:relative;min-height:280px;margin:4px 10px 10px;border-radius:8px;overflow:hidden;border:1px solid #1b4a8e;box-shadow:inset 0 0 40px rgba(0,0,0,.6)}
-.mapwrap canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.mapwrap canvas{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:2}
+#lmap{position:absolute;inset:0;z-index:1;background:#040a17;display:none}
+.mapwrap.real #lmap{display:block}
+.mapwrap.real #lmap .leaflet-tile-pane{filter:brightness(1.15) saturate(1.2) hue-rotate(-8deg)}
+#mapAttr{position:absolute;left:6px;bottom:4px;z-index:3;font-size:9.5px;color:rgba(200,215,235,.7);direction:ltr;display:none;pointer-events:none}
+.mapwrap.real #mapAttr{display:block}
 .legend{display:flex;gap:14px}
 .legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-inline-end:5px}
 
@@ -440,6 +445,8 @@ html.compact-mode #quickAns span{flex:1}
 #game.compact #incPanel{order:2}
 @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
 </style>
+<link rel="stylesheet" href="leaflet/leaflet.css">
+<script src="leaflet/leaflet.js"></script>
 </head>
 <body>
 
@@ -485,6 +492,9 @@ html.compact-mode #quickAns span{flex:1}
           <select id="optUnits">
             <option value="3">3 צוותים</option><option value="4">4 צוותים</option><option value="5" selected>5 צוותים</option><option value="6">6 צוותים</option><option value="7">7 צוותים</option>
           </select>
+        </label>
+        <label for="optMap">מפה
+          <select id="optMap"><option value="real">מפה אמיתית (באינטרנט)</option><option value="hud">מפת חמ״ל מעוצבת</option></select>
         </label>
         <label for="optSound"><input type="checkbox" id="optSound" checked> צלילי מוקד וקשר</label>
         <label for="optVoice"><input type="checkbox" id="optVoice" checked> דיבור בעברית</label>
@@ -544,7 +554,7 @@ html.compact-mode #quickAns span{flex:1}
         <h2><span id="mapTitle">מפת גזרה</span>
           <span class="legend"><span><i style="background:var(--ok)"></i>זמין</span><span><i style="background:var(--accent)"></i>בדרך</span><span><i style="background:var(--crit)"></i>אירוע</span></span>
         </h2>
-        <div class="mapwrap"><canvas id="map" aria-label="מפת העיר עם מיקום הכוחות והאירועים"></canvas></div>
+        <div class="mapwrap"><div id="lmap"></div><div id="mapAttr">© OpenStreetMap contributors © CARTO</div><canvas id="map" aria-label="מפת העיר עם מיקום הכוחות והאירועים"></canvas></div>
       </section>
       <section class="panel" id="incPanel" data-views="map units">
         <h2><span>אירועים פתוחים</span><span id="incCount"></span></h2>
@@ -1345,6 +1355,7 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden && S &
 
 /* ================= START SCREEN ================= */
 let selD = 0, selC = 0, selOp = 'm', selShift = 'e';
+try{ const m = localStorage.getItem('moked.map'); if(m) document.getElementById('optMap').value = m; }catch(e){}
 function renderStart(){
   $('#districts').innerHTML = DISTRICTS.map((d,i) =>
     `<button type="button" data-d="${i}" aria-pressed="${i===selD}"><b>${esc(d.name)}</b><span>${esc(d.sub)}</span></button>`).join('');
@@ -1432,6 +1443,7 @@ function startShift(district, city){
   $('#btnMute').setAttribute('aria-pressed', String(!A.sound)); $('#btnMute').textContent = A.sound ? 'השתק' : 'בטל השתקה';
   window.scrollTo(0,0);
   view = 'call'; S.unread = 0; layout();
+  realMapStart(); try{ localStorage.setItem('moked.map', $('#optMap').value); }catch(e){}
   renderIncs(); sizeCanvas(); renderQueue(); renderCall(); renderUnits(); header(); keepAwake(true);
   log('ops', S.ctl, 'כל כוחות ' + city.radio + ' כאן ' + S.ctl + ', תחילת ' + S.shift.name + '. בדיקת קשר.');
   log('radio', rname(S.units[0]), S.ctl + ' ' + rname(S.units[0]) + ', שומע היטב.');
@@ -1987,9 +1999,38 @@ function sizeCanvas(){
   const r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio||1);
   CW = Math.max(200, r.width); CH = Math.max(160, r.height);
   cv.width = Math.round(CW*dpr); cv.height = Math.round(CH*dpr); cx.setTransform(dpr,0,0,dpr,0,0); mapLayer = null;
+  realMapFit();
 }
 window.addEventListener('resize', () => { layout(); if(S && !S.over){ sizeCanvas(); draw(); if(CINE){ sizeCine(); if(CINE.media) ccv.classList.toggle('hidden', !CINE.narrow || !!CINE.vert); } } });
-const PX = x => 34 + x/100*(CW-68), PY = y => 26 + y/100*(CH-64);
+// Map coordinates are 0..100 across the city. On the real map they stretch over the city's real area (CITY_BB), so the same game runs on both maps.
+let GEO = null, LMAP = null, LTILES = null;
+const PX = x => GEO ? GEO.x0 + x/100*GEO.w : 34 + x/100*(CW-68), PY = y => GEO ? GEO.y0 + y/100*GEO.h : 26 + y/100*(CH-64);
+// [south, west, north, east] of the area each city map covers, with the coast where the game draws the sea.
+const CITY_BB = {'נתניה':[32.272,34.843,32.350,34.905], 'כפר סבא':[32.155,34.885,32.195,34.945], 'פתח תקווה':[32.060,34.855,32.112,34.915],
+  'ראשון לציון':[31.935,34.735,32.000,34.835], 'תל אביב-יפו':[32.035,34.755,32.125,34.845], 'רמת גן':[32.040,34.795,32.095,34.855],
+  'חולון':[31.995,34.755,32.040,34.805], 'חיפה':[32.770,34.955,32.840,35.035], 'חדרה':[32.410,34.870,32.475,34.950], 'הקריות':[32.815,35.060,32.870,35.120]};
+function realMapStart(){
+  const wrap = $('.mapwrap'), bb = CITY_BB[S.city.name];
+  S.real = !!(window.L && bb && navigator.onLine && ($('#optMap').value === 'real'));
+  wrap.classList.toggle('real', S.real); GEO = null;
+  if(!S.real) return;
+  try{
+    if(!LMAP) LMAP = L.map('lmap', {zoomControl:false, attributionControl:false, dragging:false, scrollWheelZoom:false, doubleClickZoom:false, boxZoom:false, keyboard:false, touchZoom:false, zoomSnap:0.25, fadeAnimation:false});
+    if(LTILES) LMAP.removeLayer(LTILES);
+    let errs = 0;
+    LTILES = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {subdomains:'abcd', maxZoom:19, crossOrigin:true});
+    LTILES.on('tileerror', () => { if(++errs === 6 && S && S.real) realMapOff(); });     // no internet: back to the drawn map
+    LTILES.addTo(LMAP);
+  }catch(e){ realMapOff(); }
+}
+function realMapOff(){ if(!S) return; S.real = false; GEO = null; $('.mapwrap').classList.remove('real'); sizeCanvas(); draw(); }
+function realMapFit(){
+  if(!S || !S.real || !LMAP || CW < 50) return;
+  const bb = CITY_BB[S.city.name];
+  LMAP.invalidateSize(false); LMAP.fitBounds([[bb[0],bb[1]],[bb[2],bb[3]]], {padding:[14,14], animate:false});
+  const a = LMAP.latLngToContainerPoint([bb[2],bb[1]]), b = LMAP.latLngToContainerPoint([bb[0],bb[3]]);
+  GEO = {x0:a.x, y0:a.y, w:b.x-a.x, h:b.y-a.y};
+}
 function box(x, y, w, h, r){ cx.beginPath(); if(cx.roundRect) cx.roundRect(x,y,w,h,r); else cx.rect(x,y,w,h); }
 
 let mapLayer = null;
@@ -2000,6 +2041,14 @@ function buildMapLayer(){
   c.width = Math.round(CW*dpr); c.height = Math.round(CH*dpr);
   const g = c.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0);
   const N = S.nodes, sea = S.city.sea;
+  if(S.real){                                               // real map underneath: only the game's own marks on top
+    g.fillStyle = 'rgba(4,12,30,.18)'; g.fillRect(0,0,CW,CH);
+    g.lineCap = 'round'; g.strokeStyle = 'rgba(90,166,255,.16)'; g.lineWidth = 2; g.setLineDash([4,6]);
+    for(let a=0;a<N.length;a++) for(const b of S.graph.adj[a]) if(b>a){ g.beginPath(); g.moveTo(PX(N[a].x),PY(N[a].y)); g.lineTo(PX(N[b].x),PY(N[b].y)); g.stroke(); }
+    g.setLineDash([]); mapLabels(g, N);
+    if(S.shift.start===23){ g.fillStyle = 'rgba(0,0,12,.18)'; g.fillRect(0,0,CW,CH); }
+    return c;
+  }
   const bg = g.createRadialGradient(CW/2,CH/2,40,CW/2,CH/2,Math.max(CW,CH)*0.75);
   bg.addColorStop(0,'#0b2046'); bg.addColorStop(1,'#040a17'); g.fillStyle = bg; g.fillRect(0,0,CW,CH);
   let h = 7; for(const ch of S.city.name) h = h*31 + ch.charCodeAt(0) | 0;
@@ -2031,6 +2080,14 @@ function buildMapLayer(){
     g.strokeStyle = pass[0]; g.lineWidth = pass[1];
     for(let a=0;a<N.length;a++) for(const b of S.graph.adj[a]) if(b>a){ g.beginPath(); g.moveTo(PX(N[a].x),PY(N[a].y)); g.lineTo(PX(N[b].x),PY(N[b].y)); g.stroke(); }
   }
+  mapLabels(g, N);
+  const vg = g.createRadialGradient(CW/2,CH/2,Math.min(CW,CH)*0.45,CW/2,CH/2,Math.max(CW,CH)*0.8);   // dark edges
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,.55)'); g.fillStyle = vg; g.fillRect(0,0,CW,CH);
+  if(S.shift.start===7){ g.fillStyle = 'rgba(150,185,235,.16)'; g.fillRect(0,0,CW,CH); }      // daylight
+  if(S.shift.start===23){ g.fillStyle = 'rgba(0,0,12,.22)'; g.fillRect(0,0,CW,CH); }
+  return c;
+}
+function mapLabels(g, N){
   g.textAlign = 'center'; g.lineJoin = 'round';
   for(const n of N){
     const x = PX(n.x), y = PY(n.y);
@@ -2043,15 +2100,11 @@ function buildMapLayer(){
     g.strokeStyle = 'rgba(3,9,22,.9)'; g.lineWidth = 4; g.strokeText(label, x, y+27);
     g.fillStyle = n.st ? '#ffffff' : '#cfe1f8'; g.fillText(label, x, y+27);
   }
-  const vg = g.createRadialGradient(CW/2,CH/2,Math.min(CW,CH)*0.45,CW/2,CH/2,Math.max(CW,CH)*0.8);   // dark edges
-  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,.55)'); g.fillStyle = vg; g.fillRect(0,0,CW,CH);
-  if(S.shift.start===7){ g.fillStyle = 'rgba(150,185,235,.16)'; g.fillRect(0,0,CW,CH); }      // daylight
-  if(S.shift.start===23){ g.fillStyle = 'rgba(0,0,12,.22)'; g.fillRect(0,0,CW,CH); }
-  return c;
 }
 function draw(){
   if(!S || !mapOn) return;                                   // the map is not on screen
   cx.shadowBlur = 0;
+  if(S.real) cx.clearRect(0,0,CW,CH);
   if(!mapLayer) mapLayer = buildMapLayer();
   cx.drawImage(mapLayer, 0, 0, CW, CH);
   const N = S.nodes;
