@@ -167,7 +167,12 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .qrow.held{border-style:dashed}
 .qrow.held .led{background:var(--blue);box-shadow:0 0 10px var(--blue);animation:none}
 .qrow.held button{background:linear-gradient(180deg,#4d95ff,#1c5fe0);color:#fff}
-@media (max-width:900px){ .grid{padding-bottom:84px} }
+@media (max-width:900px){
+  .grid{padding-bottom:20px}
+  #quickAns{bottom:auto;top:max(8px,env(safe-area-inset-top))}                 /* at the top on phones, clear of the call buttons */
+  #call{overflow:visible}
+  .call-foot{position:sticky;bottom:0;z-index:5;background:linear-gradient(180deg,#0f2148,#0a1632);box-shadow:0 -10px 18px rgba(3,8,20,.75)}   /* dispatch and hang-up stay on screen while scrolling the call */
+}
 @media (max-width:900px){ .top{gap:6px 10px;padding:6px 12px} .top img{width:34px} .top .where{flex:1 1 auto;font-size:17px} .top .where small{display:none} .stat{margin-inline-start:0;min-width:0} .stat span{font-size:10px} .stat b{font-size:17px} .top .tbtn{padding:5px 10px;font-size:13px;margin:0} }
 
 /* call */
@@ -399,7 +404,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
         <li>מסמנים כוחות ברשימה, ואם צריך גם מד״א, כיבוי או עירייה, ואז בוחרים נסיעה דחופה או רגילה.</li>
         <li>בלוח ״אירועים פתוחים״ מוסיפים אמבולנס, כיבוי או עירייה לאירוע בכל רגע, גם בלי כוח נוסף וגם אחרי שהשיחה נסגרה. לתגבור מסמנים כוח פנוי ולוחצים ״תגבור״.</li>
         <li>אחרי השיגור הקו נשאר פתוח: אפשר להמשיך לשאול, לשלוח תגבור, ולסיים את השיחה כשמתאים. באירוע חריג שולחים שניים או שלושה כוחות.</li>
-        <li>קריאה שלא דורשת ניידת מעבירים לגורם המתאים, למוקד 110, או מנתקים אם זו שיחת סרק.</li>
+        <li>קריאה שלא דורשת ניידת מעבירים לגורם המתאים או מסיימים ב״סיום שיחה, בלי ניידת״.</li>
         <li>באירוע חריג, כמו תאונה קשה, פיצוץ או ירי, מוצג קטע מעבר קצר ברגע השיגור. השעון עוצר בזמן הקטע, ואפשר לדלג עליו.</li>
         <li>הציון נקבע לפי סיווג, מספר הכוחות, הגורמים שהוזעקו, זמן ההגעה והמידע שנאסף.</li>
       </ol>
@@ -1410,7 +1415,7 @@ const extList = c => Object.keys(c.ext).filter(k => c.ext[k]).sort();
 const same = (a,b) => a.length===b.length && a.every(x => b.includes(x));
 
 function decide(act){
-  const c = S.active; if(!c) return;
+  const c = S.active; if(!c || c.ending) return;
   const sc = c.sc, crews = extList(c);
   if(act==='end'){ endCall(c); return; }
   if(act==='u' || act==='r'){
@@ -1428,12 +1433,18 @@ function decide(act){
       if(act==='t' && same(crews, sc.tgt)) record(sc.t, 100, 'הועבר לגורם הנכון: ' + sc.tgt.map(k => EXT[k].n).join(', ') + '.', true);
       else if(act==='t' && sc.tgt.every(k => crews.includes(k))) record(sc.t, 80, 'הוזעקו גם גורמים שלא נדרשו. ' + sc.tip, false);
       else record(sc.t, 50, sc.tip, false);
-    } else if(sc.tgt === act){
-      record(sc.t, 100, act==='x' ? 'שיחת סרק זוהתה ונותקה.' : 'הפונה הופנה למוקד 110.', true);
+    } else if(sc.tgt === act || act === 'endno'){        // a call that needs no one is simply wrapped up on the phone
+      record(sc.t, 100, sc.tgt==='x' ? 'שיחת סרק זוהתה והסתיימה.' : 'הפנייה טופלה בטלפון, בלי ניידת.', true);
     } else {
       record(sc.t, 50, sc.tip, false);
     }
     if(act==='t') log('ops', S.ctl, crews.map(k => EXT[k].n).join(' ו') + ' עודכנו, ' + c.hood + '.');
+    // a short closing line, then the line is free
+    const sir = c.sc.g==='f' ? 'גברתי' : 'אדוני', fem = S.op.g==='f';
+    const bye = act==='t' ? 'אני ' + (fem ? 'מעבירה' : 'מעביר') + ' את הפנייה ל' + crews.map(k => EXT[k].n).join(' ול') + '.'
+      : act==='110' ? sir + ', זה לא מקרה חירום. אפשר לפנות למוקד 110.' : act==='x' ? 'זה קו חירום. השיחה מסתיימת.' : sir + ', תודה שפנית. ערב טוב.';
+    c.q = [{who:'op', text: act==='endno' ? sir + ', תודה שפנית.' : bye}]; c.ending = true; c.nextAt = S.t + 0.05;
+    S.units.forEach(u => u.sel = false); renderCall(); renderUnits(); renderQueue(); return;
   }
   S.active = null; S.units.forEach(u => u.sel = false);
   renderCall(); renderUnits(); renderQueue();
@@ -1638,7 +1649,8 @@ function renderCall(){
         <button type="button" data-act="t"><b>העברה</b>לגורם המסומן</button>
         <button type="button" data-act="110"><b>110</b>מידע</button>
         <button type="button" data-act="x"><b>ניתוק</b>סרק</button>
-      </div>`}
+      </div>
+      <button type="button" class="endcall" data-act="endno" ${c.ending?'disabled':''}>סיום שיחה, בלי ניידת</button>`}
       <p class="hint" role="status">${esc(c.hint||'')}</p>
     </div>`;
   const sc2 = box.querySelector('.call-scroll'); if(sc2) sc2.scrollTop = top;
