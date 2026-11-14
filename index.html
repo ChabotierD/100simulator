@@ -298,6 +298,25 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 #unitCard .uca{display:flex;gap:8px;margin-top:12px}
 #unitCard .uca button{flex:1;padding:9px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:inherit;font:inherit;font-weight:700}
 #unitCard .uca .pri{background:var(--brand);border-color:var(--brand);color:#04101f}
+/* the card slides up, the crew files in one by one, a light bar runs on top while the unit drives with lights */
+#unitCard:not(.hidden){animation:ucFade .18s ease-out}
+#unitCard .uc{animation:ucIn .32s cubic-bezier(.2,.9,.3,1.2);position:relative}
+#unitCard .uc.still, #unitCard .uc.still .crew div, #unitCard .uc.still .ev, #unitCard .uc.still h4{animation:none}
+#unitCard .crew div{animation:ucRow .38s ease-out both}
+#unitCard .crew div:nth-child(2){animation-delay:.07s} #unitCard .crew div:nth-child(3){animation-delay:.14s} #unitCard .crew div:nth-child(4){animation-delay:.21s}
+#unitCard .ev{animation:ucRow .38s ease-out .12s both}
+#unitCard .rk{position:relative;overflow:hidden}
+#unitCard .rk:after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.65) 50%,transparent 70%);transform:translateX(-120%);animation:ucShine 2.8s ease-in-out infinite}
+#unitCard .stx.enroute,#unitCard .stx.scene{animation:ucPulse 1.4s ease-in-out infinite}
+#unitCard .bar{height:4px;background:linear-gradient(90deg,#ff2b3d 0 50%,#2f7dff 50% 100%);background-size:200% 100%;animation:ucBar .5s steps(2) infinite}
+#unitCard .av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:13px;background:linear-gradient(160deg,#1d3d74,#0e1f3d);border:1px solid rgba(90,166,255,.4);color:#cfe1f8;flex:none}
+@keyframes ucFade{from{background:rgba(2,6,16,0)}}
+@keyframes ucIn{from{transform:translateY(26px) scale(.94);opacity:0}}
+@keyframes ucRow{from{transform:translateX(-16px);opacity:0}}
+@keyframes ucShine{60%,100%{transform:translateX(120%)}}
+@keyframes ucPulse{50%{filter:brightness(1.6);box-shadow:0 0 12px currentColor}}
+@keyframes ucBar{to{background-position:100% 0}}
+@media (prefers-reduced-motion:reduce){#unitCard *{animation:none!important}}
 
 /* radio */
 #logPanel{flex:1}
@@ -490,7 +509,7 @@ html.compact-mode #quickAns span{flex:1}
       <div class="opts">
         <label for="optUnits">כוחות במשמרת
           <select id="optUnits">
-            <option value="3">3 צוותים</option><option value="4">4 צוותים</option><option value="5" selected>5 צוותים</option><option value="6">6 צוותים</option><option value="7">7 צוותים</option>
+            <option value="3">3 צוותים</option><option value="4">4 צוותים</option><option value="5" selected>5 צוותים</option><option value="6">6 צוותים</option><option value="7">7 צוותים</option><option value="8">8 צוותים</option>
           </select>
         </label>
         <label for="optMap">מפה
@@ -699,20 +718,22 @@ const DISTRICTS = [
   ]}
 ];
 
-// Who sits in each unit: names and ranks. Ranks run שוטר < סמ״ר < רס״ל < רס״מ < רס״ב < מפקח < פקד.
+// Who sits in each unit: names and ranks. Patrols are NCOs (שוטר < סמ״ר < רס״ל < רס״מ < רס״ב); the shift officer "11" is the only officer.
 const FIRST = ['שי','יוסי','אבי','רועי','עמית','איתי','דור','אלון','מורן','שירן','נועה','עדי','ליאור','תומר','אסף','רז','גל','בן','יעל','מאיה','אוריה','אליה','דניאל','עומר','נתנאל','סהר','מיכל','חן'];
 const LAST = ['כהן','לוי','מזרחי','פרץ','ביטון','אברהם','פרידמן','אזולאי','דהן','חדד','גבאי','שפירא','בן דוד','אוחיון','קליין','עמר','יוסף','מלכה','רוזן','אלמוג','סעדה','נחום'];
 function makeCrew(d){
   const used = new Set(), who = (rank, role) => { let n; do n = pick(FIRST) + ' ' + pick(LAST); while(used.has(n)); used.add(n); return {rank, name:n, role}; };
-  if(d.cs==='401') return [who('פקד','מפקד המשמרת'), who('רס״ב','נהג')];
-  if(d.cs==='402') return [who('מפקח','סגן המפקד'), who(pick(['רס״מ','רס״ב']),'נהג')];
+  if(d.cs==='11') return [who(pick(['פקד','מפקח','רפ״ק']),'קצין משמרת')];
+  if(d.cs==='401') return [who(pick(['רס״ב','רס״מ']),'ראש משמרת סיור'), who(pick(['רס״ל','סמ״ר']),'נהג')];
+  if(d.cs==='402') return [who(pick(['רס״מ','רס״ל']),'סגן ראש משמרת'), who(pick(['סמ״ר','שוטר']),'נהג')];
   if(/אופנוען/.test(d.type)) return [who(pick(['רס״ל','רס״מ','רס״ב']),'רוכב')];
-  if(d.w===2) return [who('מפקח','מפקד הצוות'), who('רס״ב','סגן'), who('רס״ל','לוחם'), who(pick(['סמ״ר','שוטר']),'לוחם')];
+  if(d.w===2) return [who('רס״ב','מפקד הצוות'), who('רס״מ','סגן'), who('רס״ל','לוחם'), who(pick(['סמ״ר','שוטר']),'לוחם')];
   return [who(pick(['רס״מ','רס״ל','רס״ב']),'מפקד הניידת'), who(pick(['שוטר','סמ״ר','רס״ל']),'נהג')];
 }
 // All units a station can field, in the order they join a shift. w = how much the unit counts toward the forces an incident needs.
 const UNIT_DEFS = [
  {cs:'401', type:'ראש משמרת סיור', speed:4.6, w:1, ord:0},
+ {cs:'11', type:'קצין משמרת', speed:5, w:1, ord:0.5},
  {cs:'402', type:'סגן ראש משמרת', speed:4.6, w:1, ord:1},
  {cs:'411', type:'אופנוען', speed:6.2, w:1, ord:4},
  {cs:'403', type:'סיור', speed:4.6, w:1, ord:2},
@@ -1080,8 +1101,9 @@ function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.
 const A = {ctx:null, sound:true, voice:true, he:null, vf:null, vm:null};
 function initAudio(){
   try{
+    if(!A.warm && window.speechSynthesis){ A.warm = true; const w = new SpeechSynthesisUtterance(' '); w.volume = 0; w.lang = 'he-IL'; speechSynthesis.speak(w); }   // wakes the phone's voice engine so the first line is not late
     if(navigator.audioSession) navigator.audioSession.type = 'playback';       // iPhone: keep playing with the ringer switch on silent
-    if(!A.ctx){ const C = window.AudioContext || window.webkitAudioContext; if(C) A.ctx = new C(); }
+    if(!A.ctx){ const C = window.AudioContext || window.webkitAudioContext; if(C){ try{ A.ctx = new C({latencyHint:'interactive'}); }catch(e){ A.ctx = new C(); } } }
     if(A.ctx && A.ctx.state!=='running') A.ctx.resume();
     if(A.ctx && !A.unlocked){ const b = A.ctx.createBuffer(1, 1, 22050), s = A.ctx.createBufferSource(); s.buffer = b; s.connect(A.ctx.destination); s.start(0); A.unlocked = true; }
   }catch(e){}
@@ -1262,7 +1284,7 @@ function numWords(n){
 }
 function spoken(text, radio){
   let t = text.replace(/יס״מ/g,'יַסָּם').replace(/מד״א/g,'מָדָא').replace(/פ״ת/g,'פֵּ תָּ');
-  if(radio) t = t.replace(/\b[1-9]\d\d\b/g, m => numWords(+m));                   // call signs are said as a number: ארבע מאות ושלוש
+  if(radio) t = t.replace(/\b[1-9]\d{1,2}\b/g, m => numWords(+m));                   // call signs are said as a number: ארבע מאות ושלוש
   return t.replace(/[״׳]/g,'');
 }
 function say(text, o){
@@ -1274,7 +1296,8 @@ function say(text, o){
     const matched = o.g==='f' ? A.vf : o.g==='m' ? A.vm : null;
     const voice = matched || A.he;
     const base = o.pitch || (matched ? 1 : o.g==='f' ? 1.25 : o.g==='m' ? 0.8 : 1);
-    const parts = spoken(text, o.radio).match(/[^.!?]+[.!?]*/g) || [text];
+    const phone = compact || ('ontouchstart' in window);
+    const parts = phone ? [spoken(text, o.radio)] : (spoken(text, o.radio).match(/[^.!?]+[.!?]*/g) || [text]);   // phones pause between utterances, so one utterance there
     const clean = parts.map(p => p.trim()).filter(Boolean);
     clean.forEach((p, idx) => {                            // sentence by sentence, with small natural variations
       const u = new SpeechSynthesisUtterance(p);
@@ -1419,8 +1442,18 @@ function route(from, to){
 // "נתניה 401" on the radio. The riot unit is called by its name and station.
 function rname(u){ return /^\d/.test(u.cs) ? S.city.radio + ' ' + u.cs : u.cs + ' ' + S.city.radio; }
 
+// The map and addresses speak in areas, not neighbourhood names: צפון העיר, מרכז העיר, אזור התעשייה, and the police station.
+function zoneOf(n, cx0, cy0){
+  if(/תעשי/.test(n.n)) return 'אזור התעשייה';
+  const dx = n.x - cx0, dy = n.y - cy0;
+  if(Math.hypot(dx, dy) < 13) return 'מרכז העיר';
+  const ns = dy < -9 ? 'צפון' : dy > 9 ? 'דרום' : '', ew = dx > 12 ? 'מזרח' : dx < -12 ? 'מערב' : '';
+  return (ns && ew ? ns + ' ' + ew : ns || ew || 'מרכז') + ' העיר';
+}
 function startShift(district, city){
-  const nodes = city.nodes.map(a => ({n:a[0], x:a[1], y:a[2], s:a[3]||[], st:!!a[4]}));
+  const raw = city.nodes.map(a => ({n:a[0], x:a[1], y:a[2], s:a[3]||[], st:!!a[4]}));
+  const mx = raw.reduce((a,n) => a + n.x, 0) / raw.length, my = raw.reduce((a,n) => a + n.y, 0) / raw.length;
+  const nodes = raw.map(n => Object.assign(n, {hoodName:n.n, n: n.st ? 'מרכז העיר' : zoneOf(n, mx, my)}));
   S = {
     district, city, nodes, ctl:district.ctl, t:0, over:false,
     calls:[], active:null, incs:[], rec:[], lineNo:0,
@@ -1493,7 +1526,10 @@ function tick(dt){
       const go = () => { if(S && S.active===mine && mine.nextAt > S.t + 0.15) mine.nextAt = S.t + 0.15; };
       say(l.text, {force:true, g:c.sc.g, rate:c.rate + 0.05, onend:go});
     }
-    else if(voice && l.who==='caller'){ if(l.reveal!=null) hush(); say(l.text, {force:l.reveal!=null, g:c.sc.g, rate:c.rate + 0.05}); }
+    else if(voice && l.who==='caller'){
+      const busy = window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending), o = {force:l.reveal!=null, g:c.sc.g, rate:c.rate + 0.05};
+      if(l.reveal!=null && busy){ hush(); setTimeout(() => say(l.text, o), 70); } else say(l.text, o);   // phones drop a line spoken in the same instant as a cancel
+    }
     else if(voice && l.who==='op') say(l.text, {force:true, g:S.op.g, rate:1.12, pitch:S.op.g==='f' ? 1.1 : 0.95});
     if(l.reveal!=null){ c.rev[l.reveal] = true; c.fresh = l.reveal; relay(c, l.reveal); }
     renderCall();
@@ -1961,14 +1997,16 @@ $('#units').addEventListener('click', e => {
 // The unit card: crew, ranks, and the incident it is handling. Opens from the forces board and from the map.
 let cardU = null;
 function unitCard(u){
+  const again = !!u && cardU === u && !$('#unitCard').classList.contains('hidden');   // a refresh of the open card does not replay the animation
   cardU = u; if(!u){ $('#unitCard').classList.add('hidden'); return; }
   const lab = {free:'זמין', enroute:'בדרך לאירוע', scene:'בזירה'}, inc = u.inc, c = inc && inc.c;
   const eta = u.state==='enroute' ? Math.max(1, Math.round(pathLen(u) / (u.speed * (u.urgent?1:0.58)))) : 0;
   const where = u.state==='free' ? S.nodes[u.node].n : c ? c.hood : '';
   const ev = c ? `<div class="ev"><span class="no">אירוע ${c.no}</span> · ${esc(c.sc.t)}<br>${esc(addrText(c))}${eta ? '<br>הגעה משוערת בעוד ' + eta + ' שניות' + (u.urgent ? ' · נסיעה מבצעית' : '') : ''}${inc.units.length > 1 ? '<br>יחד עם ' + inc.units.filter(x => x!==u).map(x => esc(x.cs)).join(', ') : ''}</div>`
     : `<div class="ev none">פנוי לשיגור · ${esc(where)}</div>`;
-  $('#ucBox').innerHTML = `<div class="uch">${UICON[u.kind]}<div><b>${esc(u.cs)}</b><div class="t">${esc(u.type)} · ${esc(S.city.radio)}</div></div><span class="stx ${u.state}">${lab[u.state]}</span></div>
-    <div class="ucb"><h4>צוות</h4><div class="crew">${u.crew.map(m => `<div><span class="rk">${m.rank}</span><span>${esc(m.name)}</span><span class="role">${esc(m.role)}</span></div>`).join('')}</div>
+  $('#ucBox').classList.toggle('still', again);
+  $('#ucBox').innerHTML = (u.state==='enroute' && u.urgent ? '<div class="bar"></div>' : '') + `<div class="uch">${UICON[u.kind]}<div><b>${esc(u.cs)}</b><div class="t">${esc(u.type)} · ${esc(S.city.radio)}</div></div><span class="stx ${u.state}">${lab[u.state]}</span></div>
+    <div class="ucb"><h4>צוות</h4><div class="crew">${u.crew.map(m => `<div><span class="av">${esc(m.name.charAt(0))}</span><span class="rk">${m.rank}</span><span>${esc(m.name)}</span><span class="role">${esc(m.role)}</span></div>`).join('')}</div>
     <h4>משימה</h4>${ev}
     <div class="uca">${u.state==='free' ? `<button type="button" class="pri" data-ucsel>${u.sel ? 'בטל סימון' : 'סמן לשיגור'}</button>` : ''}<button type="button" data-ucx>סגור</button></div></div>`;
   $('#unitCard').classList.remove('hidden');
@@ -2095,7 +2133,8 @@ function mapLabels(g, N){
     g.fillStyle = gl; g.beginPath(); g.arc(x,y,18,0,7); g.fill();
     if(n.st){ g.fillStyle = '#2f7dff'; g.strokeStyle = '#eaf3ff'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(x,y-9); g.lineTo(x+8,y-5); g.lineTo(x+7,y+4); g.lineTo(x,y+9); g.lineTo(x-7,y+4); g.lineTo(x-8,y-5); g.closePath(); g.fill(); g.stroke(); }
     else { g.fillStyle = '#eaf9ff'; g.beginPath(); g.arc(x,y,3.2,0,7); g.fill(); }
-    const label = n.n + (n.st ? ' · תחנה' : '');
+    if(!n.st && N.some(m => m !== n && m.n === n.n && N.indexOf(m) < N.indexOf(n))) continue;   // one label per area
+    const label = n.st ? 'תחנת משטרה' : n.n;
     g.font = (n.st ? '700' : '500') + ' 13.5px Rubik, Arial';
     g.strokeStyle = 'rgba(3,9,22,.9)'; g.lineWidth = 4; g.strokeText(label, x, y+27);
     g.fillStyle = n.st ? '#ffffff' : '#cfe1f8'; g.fillText(label, x, y+27);
