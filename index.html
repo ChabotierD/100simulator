@@ -1233,7 +1233,7 @@ function say(text, o){
     clean.forEach((p, idx) => {                            // sentence by sentence, with small natural variations
       const u = new SpeechSynthesisUtterance(p);
       A.pend = (A.pend||0) + 1;
-      const done = () => { A.pend = Math.max(0, (A.pend||0) - 1); if(o.bed && idx===clean.length-1) bedStop(); };
+      const done = () => { A.pend = Math.max(0, (A.pend||0) - 1); if(idx===clean.length-1){ if(o.bed) bedStop(); if(o.onend) o.onend(); } };
       u.onend = done; u.onerror = done;
       if(o.bed && idx===0) u.onstart = () => bedStart(o.bed==='plain' ? null : o.bed, o.unit);
       u.lang = 'he-IL'; u.voice = voice;
@@ -1438,14 +1438,20 @@ function tick(dt){
   const c = S.active;
   if(c && c.q.length && S.t >= c.nextAt){
     const l = c.q.shift(); l.ts = fmtS(c.base + (S.t - c.answeredAt)); c.lines.push(l);
-    c.nextAt = S.t + (A.voice && A.he ? 0.5 + l.text.length*0.075 : 0.7 + l.text.length*0.05);   // with a voice, the text keeps pace with the speech
-    if(l.who==='caller') say(l.text, {force:true, g:c.sc.g, rate:c.rate});
-    else if(l.who==='op') say(l.text, {force:true, g:S.op.g, rate:1.08, pitch:S.op.g==='f' ? 1.1 : 0.95});
+    c.nextAt = S.t + 0.35 + l.text.length*0.03;            // the text runs at reading pace and never waits for the voice
+    const voice = A.voice && A.he && (l.voiced || l.who==='op');
+    if(voice && c.waitVoice){                               // the opening "הלו, משטרה?" is heard in full before the story starts
+      c.waitVoice = false; const mine = c; c.nextAt = S.t + 3;
+      const go = () => { if(S && S.active===mine && mine.nextAt > S.t + 0.15) mine.nextAt = S.t + 0.15; };
+      say(l.text, {force:true, g:c.sc.g, rate:c.rate + 0.05, onend:go});
+    }
+    else if(voice && l.who==='caller'){ if(l.reveal!=null) hush(); say(l.text, {force:l.reveal!=null, g:c.sc.g, rate:c.rate + 0.05}); }
+    else if(voice && l.who==='op') say(l.text, {force:true, g:S.op.g, rate:1.12, pitch:S.op.g==='f' ? 1.1 : 0.95});
     if(l.reveal!=null){ c.rev[l.reveal] = true; c.fresh = l.reveal; relay(c, l.reveal); }
     renderCall();
   }
   if(c && c.inc && !c.ending && !c.q.length && c.inc.arrivedAt==null && c.liveI < c.sc.live.length && S.t >= c.liveAt && S.incs.includes(c.inc)){
-    c.q.push({who:'caller', text:c.sc.live[c.liveI++]}); c.liveAt = S.t + rnd(8,12); if(c.nextAt < S.t) c.nextAt = S.t + 0.1;
+    c.q.push({who:'caller', text:c.sc.live[c.liveI++], voiced:true}); c.liveAt = S.t + rnd(8,12); if(c.nextAt < S.t) c.nextAt = S.t + 0.1;
   }
   if(c && c.ending && !c.q.length && S.t >= c.nextAt) closeCall();
 
@@ -1551,8 +1557,9 @@ function answer(i){
     c.base = S.shift.start*3600 + Math.floor(S.t / SHIFT_LEN * 28800); c.opened = fmtS(c.base);
     const hi = 'משטרה שלום, ' + (S.op.g==='f' ? 'מדברת ' : 'מדבר ') + S.op.name + '.';
     c.lines.push({who:'op', text:hi, ts:c.opened}); say(hi, {force:true, g:S.op.g, rate:1.08, pitch:S.op.g==='f' ? 1.1 : 0.95});
-    c.q = c.sc.o.map(t => ({who: t.charAt(0)==='(' ? 'fx' : 'caller', text:fill(c,t)}));
-    c.nextAt = S.t + (A.voice && A.he ? 2.4 : 0.6);
+    const hello = c.sc.pri===1 ? pick(['הלו? משטרה?! מהר!', 'משטרה? תעזרו לי!']) : pick(['הלו, משטרה?', 'שלום, משטרה?', 'הלו? זה משטרה?']);
+    c.q = [{who:'caller', text:hello, voiced:true}].concat(c.sc.o.map((t, i) => ({who: t.charAt(0)==='(' ? 'fx' : 'caller', text:fill(c,t), voiced:i===0})));
+    c.nextAt = S.t + (A.voice && A.he ? 1.9 : 0.5); c.waitVoice = A.voice && A.he;
   }
   if(compact) setView('call');
   renderQueue(); renderCall(); renderUnits(); tabBadges();
@@ -1582,10 +1589,13 @@ function ask(id){
   else if(id==='stay') ans = 'בסדר, אני איתך על הקו.';
   else if(id==='calm') ans = 'טוב... תודה. רק שיגיעו מהר.';
   else { id = +id; ans = fill(c, c.sc.qs[id].a); }
-  sfx.key();
-  c.q.push({who:'op', text:item.q});
-  c.q.push({who: ans.charAt(0)==='(' ? 'fx' : 'caller', text:ans, reveal:id});
-  if(c.nextAt < S.t) c.nextAt = S.t + 0.25;
+  sfx.key(); hush();                                        // the operator cuts in: the caller stops talking
+  const now = fmtS(c.base + (S.t - c.answeredAt));
+  c.q.filter(l => l.reveal==null).forEach(l => { l.ts = now; c.lines.push(l); });     // whatever the caller was still saying shows at once
+  const later = c.q.filter(l => l.reveal!=null);
+  c.q = later; c.lines.push({who:'op', text:item.q, ts:now});
+  c.q.push({who: ans.charAt(0)==='(' ? 'fx' : 'caller', text:ans, reveal:id, voiced:true});
+  c.nextAt = S.t + 0.45;
   renderCall();
 }
 // "רחוב הרצל", but "שדרות ניצה" and "דרך עכו" as they are.
@@ -1690,7 +1700,7 @@ function arrive(u){
   const inc = u.inc; u.state = 'scene';
   if(inc && inc.arrivedAt==null){
     inc.arrivedAt = S.t; inc.repAt = S.t + 5;
-    if(S.active === inc.c && !inc.c.ending && inc.sc.arr){ inc.c.q.push({who:'caller', text:inc.sc.arr}); if(inc.c.nextAt < S.t) inc.c.nextAt = S.t + 0.3; }
+    if(S.active === inc.c && !inc.c.ending && inc.sc.arr){ inc.c.q.push({who:'caller', text:inc.sc.arr, voiced:true}); if(inc.c.nextAt < S.t) inc.c.nextAt = S.t + 0.3; }
     const m = S.ctl + ' ' + rname(u) + (inc.hasAddr ? (S.op.g==='f' ? '. ' + S.ctl + ', סמני לי הגעה לאירוע.' : '. ' + S.ctl + ', סמן לי הגעה לאירוע.') : ', אני ב' + stName(inc.c.st) + ' בלי מספר בית. סורק את הרחוב.');
     log('radio', rname(u), m); radioSay(m, {u, siren: inc.urgent ? 'yelp' : null, rep: inc.hasAddr ? (S.op.g==='f' ? 'arrive-f' : 'arrive-m') : 'noaddr'});
     inc.sceneAt = inc.hasAddr ? S.t : S.t + 9;
