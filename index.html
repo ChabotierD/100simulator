@@ -575,7 +575,7 @@ const DISTRICTS = [
      ['דורה',58,66,['שדרות בן צבי']],
      ['עיר ימים',26,86,['אהוד מנור','עוזי חיטמן']],
      ['פולג',48,92,['גיבורי ישראל','המחשב']]]},
-   {name:'כפר סבא', radio:'כפר סבא', sub:'מרחב שרון', sea:'', streets:['ויצמן','רוטשילד','טשרניחובסקי','ירושלים','הרצל'], nodes:[
+   {name:'כפר סבא', radio:'סבא', sub:'מרחב שרון', sea:'', streets:['ויצמן','רוטשילד','טשרניחובסקי','ירושלים','הרצל'], nodes:[
      ['מרכז העיר',48,46,['ויצמן','רוטשילד','טשרניחובסקי'],1],
      ['הדרים',30,22,[]],
      ['יוספטל',62,24,[]],
@@ -603,9 +603,9 @@ const DISTRICTS = [
      ['נאות אשלים',46,76,[]],
      ['שיכון המזרח',86,50,[]]]}
   ]},
- {id:'ta', name:'מחוז תל אביב', ctl:'תל אביב', sub:'גוש דן', soon:['בני ברק','גבעתיים','בת ים','הרצליה','רמת השרון'],
+ {id:'ta', name:'מחוז תל אביב', ctl:'אביב', sub:'גוש דן', soon:['בני ברק','גבעתיים','בת ים','הרצליה','רמת השרון'],
   cities:[
-   {name:'תל אביב-יפו', radio:'ירקון', sub:'מרחב ירקון ומרחב יפתח', sea:'w', streets:['אבן גבירול','דיזנגוף','אלנבי','דרך בגין'], nodes:[
+   {name:'תל אביב-יפו', radio:'אביב', sub:'מרחב ירקון ומרחב יפתח', sea:'w', streets:['אבן גבירול','דיזנגוף','אלנבי','דרך בגין'], nodes:[
      ['רמת אביב',40,8,['איינשטיין','ברודצקי','חיים לבנון']],
      ['רמת החייל',80,12,['הברזל','ראול ולנברג']],
      ['הצפון הישן',30,26,['דיזנגוף','בן יהודה','ארלוזורוב','אבן גבירול']],
@@ -615,7 +615,7 @@ const DISTRICTS = [
      ['פלורנטין',34,66,['פלורנטין','ויטל','הרצל']],
      ['התקווה',70,70,['האצ״ל','דרך ההגנה']],
      ['יפו',22,84,['שדרות ירושלים','יפת','יהודה הימית']]]},
-   {name:'רמת גן', radio:'רמת גן', sub:'מרחב דן', sea:'', streets:['ז׳בוטינסקי','ביאליק','הרצל','אבא הלל'], nodes:[
+   {name:'רמת גן', radio:'גן', sub:'מרחב דן', sea:'', streets:['ז׳בוטינסקי','ביאליק','הרצל','אבא הלל'], nodes:[
      ['הבורסה',14,36,['תובל','אבא הלל']],
      ['מרכז העיר',36,50,['ביאליק','הרצל','ז׳בוטינסקי'],1],
      ['נחלת גנים',24,68,['הירדן','חיבת ציון']],
@@ -674,7 +674,7 @@ const UNIT_DEFS = [
  {cs:'412', type:'אופנוען', speed:6.2, w:1, ord:5},
  {cs:'יס״מ', type:'צוות יס״מ, נחשב כשני כוחות', speed:4.6, w:2, ord:6}
 ];
-const EXT = {'101':{n:'מד״א', crew:'אמבולנס'}, '102':{n:'כיבוי והצלה', crew:'צוות כיבוי'}, '106':{n:'מוקד עירוני', crew:'צוות עירייה'}};
+const EXT = {'101':{n:'מד״א', crew:'אמבולנס', ask:'מד״א'}, '102':{n:'כיבוי והצלה', crew:'צוות כיבוי', ask:'כיבוי'}, '106':{n:'מוקד עירוני', crew:'צוות עירייה', ask:'צוות עירייה'}};
 
 // pri: 1 urgent, 2 regular, 3 no unit (tgt = where it belongs). g = caller's gender. ext = outside crews the incident needs, opt = crews that are fine but not required.
 // qs: {q, a, k: counts toward the info score, after: index of the question whose answer unlocks this one}
@@ -1070,12 +1070,24 @@ function noiseSrc(){
   for(let i=0;i<n;i++) ch[i] = (Math.random()*2-1) * (Math.random() < 0.004 ? 3 : 1);     // with the odd crackle
   const src = A.ctx.createBufferSource(); src.buffer = buf; src.loop = true; return src;
 }
+const isMoto = u => !!(u && typeof u === 'object' && u.type === 'אופנוען');
 function bedStart(siren, unit){
   if(!A.sound || !A.ctx) return;
   bedStop(true);
   try{
     const t = A.ctx.currentTime, out = A.ctx.createGain(); out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(1, t+0.04); out.connect(A.ctx.destination);
     const nodes = [];                                       // no static under the voice: only the key click, the siren and the closing beep
+    if(isMoto(unit)){                                        // a motorcyclist talks from inside the helmet: wind gusts and the engine under the voice
+      const w = noiseSrc(), wf = A.ctx.createBiquadFilter(), wg = A.ctx.createGain(), gust = A.ctx.createOscillator(), gg = A.ctx.createGain();
+      wf.type = 'lowpass'; wf.frequency.value = 520; wf.Q.value = 0.4; wg.gain.value = 0.055;
+      gust.type = 'sine'; gust.frequency.value = 0.7 + Math.random()*0.5; gg.gain.value = 0.03; gust.connect(gg).connect(wg.gain);
+      w.connect(wf).connect(wg).connect(out); w.start(t); gust.start(t);
+      const e = A.ctx.createOscillator(), ef = A.ctx.createBiquadFilter(), eg = A.ctx.createGain(), rev = A.ctx.createOscillator(), rg = A.ctx.createGain();
+      e.type = 'sawtooth'; e.frequency.value = 68; rev.type = 'sine'; rev.frequency.value = 0.35; rg.gain.value = 9; rev.connect(rg).connect(e.frequency);
+      ef.type = 'lowpass'; ef.frequency.value = 240; eg.gain.value = 0.035;
+      e.connect(ef).connect(eg).connect(out); e.start(t); rev.start(t);
+      nodes.push(w, gust, e, rev);
+    }
     if(siren){
       const o = A.ctx.createOscillator(), lfo = A.ctx.createOscillator(), lg = A.ctx.createGain(), sf = A.ctx.createBiquadFilter(), sg = A.ctx.createGain();
       o.type = 'sawtooth'; o.frequency.value = 980; lfo.type = 'triangle'; lfo.frequency.value = siren==='yelp' ? 3.4 : 0.5; lg.gain.value = 340;
@@ -1105,9 +1117,9 @@ function radioTx(dur, siren, unit){
 // if that station and unit have an opener, then the report itself. Without a report recording the built-in voice reads the whole line.
 // Openers: 'open|<station on the radio>|<call sign>'. Reports: 'rep|<report>' or 'rep|<report>|<control>' for one district only.
 // Reports: go-op יוצא בנסיעה מבצעית, go יוצא לאירוע, arrive-f / arrive-m סמני / סמן לי הגעה, noaddr אין מספר בית, scene בזירה,
-// need-101 / need-102 / need-106 נדרש אמבולנס / כיבוי / עירייה, done סיום טיפול, patrol סיור שגרתי.
-// Station file names: netanya, kfarsaba, pt, rishon, yarkon, ramatgan, holon, haifa, hadera, zevulun. Units: 401 402 403 404 411 412 yasam.
-const STATION_FILE = {'נתניה':'netanya','כפר סבא':'kfarsaba','פ״ת':'pt','ראשון':'rishon','ירקון':'yarkon','רמת גן':'ramatgan','חולון':'holon','חיפה':'haifa','חדרה':'hadera','זבולון':'zevulun'};
+// need-101 / need-102 / need-106 תזמיני לי מד״א / כיבוי / עירייה (need-101-m ... for a male operator, else the same file), done סיום טיפול, patrol סיור שגרתי.
+// Station file names: netanya, kfarsaba, pt, rishon, telaviv, ramatgan, holon, haifa, hadera, zevulun. Units: 401 402 403 404 411 412 yasam.
+const STATION_FILE = {'נתניה':'netanya','סבא':'kfarsaba','פ״ת':'pt','ראשון':'rishon','אביב':'telaviv','גן':'ramatgan','חולון':'holon','חיפה':'haifa','חדרה':'hadera','זבולון':'zevulun'};
 const CLIPS = {'open|נתניה|401':'voice/a401.mp3', 'rep|arrive-f|מרכז':'voice/a402.mp3'};
 const clipBuf = {}; let clipChain = Promise.resolve();
 function playNow(buf, vol, loop){ try{
@@ -1126,11 +1138,17 @@ function loadClips(){
       .catch(() => { clipBuf[k] = null; }); });
 }
 function clipFor(name){ const b = name ? clipBuf[name] : null; return b && b !== 'loading' ? b : null; }
-function playClip(buf){                                     // one recorded clip at a time, in order
+function playClip(buf, moto){                               // one recorded clip at a time, in order
   const run = () => new Promise(res => { try{
     if(A.ctx.state!=='running') A.ctx.resume();
-    const src = A.ctx.createBufferSource(), g = A.ctx.createGain(); src.buffer = buf; g.gain.value = 0.95;
-    src.connect(g).connect(A.ctx.destination); src.onended = res; src.start(); setTimeout(res, buf.duration*1000 + 400);
+    const src = A.ctx.createBufferSource(), g = A.ctx.createGain(); src.buffer = buf; g.gain.value = moto ? 1.15 : 0.95;
+    if(moto){                                                 // inside a helmet: boxed-in and muffled, a little hollow
+      const lp = A.ctx.createBiquadFilter(), pk = A.ctx.createBiquadFilter(), hp = A.ctx.createBiquadFilter();
+      lp.type = 'lowpass'; lp.frequency.value = 1700; lp.Q.value = 0.9;
+      pk.type = 'peaking'; pk.frequency.value = 650; pk.Q.value = 1.6; pk.gain.value = 7;
+      hp.type = 'highpass'; hp.frequency.value = 320;
+      src.connect(hp).connect(pk).connect(lp).connect(g).connect(A.ctx.destination);
+    } else src.connect(g).connect(A.ctx.destination); src.onended = res; src.start(); setTimeout(res, buf.duration*1000 + 400);
   }catch(e){ res(); } });
   clipChain = clipChain.then(run); return clipChain;
 }
@@ -1138,18 +1156,19 @@ function playClip(buf){                                     // one recorded clip
 function radioSay(text, o){
   o = o || {};
   const findRep = id => id && S ? (clipFor('rep|' + id + '|' + S.ctl) || clipFor('rep|' + id)) : null;
-  const clip = A.sound && A.ctx ? (findRep(o.rep) || findRep({'arrive-m':'arrive-f', 'arrive-f':'arrive-m'}[o.rep])) : null;   // until both versions exist, one stands in for the other
+  const alt = o.rep ? ({'arrive-m':'arrive-f', 'arrive-f':'arrive-m'}[o.rep] || (/-m$/.test(o.rep) ? o.rep.slice(0,-2) : null)) : null;
+  const clip = A.sound && A.ctx ? (findRep(o.rep) || findRep(alt)) : null;   // until both versions exist, one stands in for the other
   if(clip){                                                 // the recorded report, on its own: no built-in voice on top of it
     const opener = o.u && S ? clipFor('open|' + S.city.radio + '|' + o.u.cs) : null;
-    bedStart(o.siren, true); const mine = bed;
-    if(opener){ playClip(opener); clipChain = clipChain.then(() => new Promise(r => setTimeout(r, 450))); }   // the unit calls in, a beat, then the report
-    playClip(clip).then(() => { if(bed === mine) bedStop(); });
+    const moto = isMoto(o.u); bedStart(o.siren, o.u || true); const mine = bed;
+    if(opener){ playClip(opener, moto); clipChain = clipChain.then(() => new Promise(r => setTimeout(r, 450))); }   // the unit calls in, a beat, then the report
+    playClip(clip, moto).then(() => { if(bed === mine) bedStop(); });
     return;
   }
   const can = A.voice && A.he && window.speechSynthesis && (A.pend||0) < 6;
-  if(!can){ radioTx(txLen(text), o.siren, !!(o.u || o.unit)); return; }
+  if(!can){ radioTx(txLen(text), o.siren, o.u || !!o.unit); return; }
   const n = o.u ? (parseInt(o.u.cs,10) || 7) : 0;                                        // each unit keeps its own voice pitch
-  say(text, {force:true, radio:true, unit:!!(o.u || o.unit), bed:o.siren || 'plain', g:o.g || 'm', rate:o.rate || 1.15, pitch:o.pitch || (o.u ? 0.72 + (n%6)*0.045 : undefined)});
+  say(text, {force:true, radio:true, unit:o.u || !!o.unit, bed:o.siren || 'plain', g:o.g || 'm', rate:o.rate || 1.15, pitch:o.pitch || (o.u ? 0.72 + (n%6)*0.045 : undefined)});
 }
 const txLen = text => 0.9 + text.length*0.062;
 const sfx = {
@@ -1486,7 +1505,7 @@ function ambient(dt){
     S.chatAt = rnd(26,44);
     const free = S.units.filter(u => u.state==='free');
     if(free.length){ const u = pick(free); const ln = S.ctl + ' ' + rname(u) + ', ' + pick(CHATTER).replace('{h}', S.nodes[u.node].n);
-      if(clipFor('rep|patrol')) radioSay(ln, {u, rep:'patrol'}); else radioTx(1.3, null, true); log('radio', rname(u), ln); }
+      if(clipFor('rep|patrol')) radioSay(ln, {u, rep:'patrol'}); else radioTx(1.3, null, u); log('radio', rname(u), ln); }
   }
 }
 function spawnVeh(inc, k){
@@ -1624,7 +1643,7 @@ function sendUnits(inc, units, urgent){
     u.node = inc.ni;
     setTimeout(() => { if(S && !S.over){
       const m = S.ctl + ' ' + rname(u) + (urgent ? ', קיבלתי. יוצא לאירוע בנסיעה מבצעית.' : ', קיבלתי. יוצא לאירוע.');
-      log('radio', rname(u), m); if(i===0) radioSay(m, {u, siren: urgent ? 'wail' : null, rep: urgent ? 'go-op' : 'go'}); else radioTx(1.2, urgent ? 'wail' : null, true);
+      log('radio', rname(u), m); if(i===0) radioSay(m, {u, siren: urgent ? 'wail' : null, rep: urgent ? 'go-op' : 'go'}); else radioTx(1.2, urgent ? 'wail' : null, u);
     } }, 2600 + i*2200);
   });
 }
@@ -1685,8 +1704,9 @@ function askForCrew(inc){
   inc.missing = (inc.sc.ext||[]).filter(k => !inc.crews.includes(k)); if(!inc.missing.length) return;
   inc.dur += 6;
   inc.late = true;
-  const u = inc.units[0], m = S.ctl + ' ' + rname(u) + ', נדרש כאן ' + inc.missing.map(k => EXT[k].crew).join(' ו') + ' בדחיפות. לא הוזמן.';
-  log('bad', rname(u), m); renderIncs(); radioSay(m, {u, siren: inc.urgent ? 'yelp' : null, rep: inc.missing.length===1 ? 'need-' + inc.missing[0] : null});
+  const u = inc.units[0], one = inc.missing.length===1 ? inc.missing[0] : null;          // "תזמיני לי מד״א דחוף", said to the operator
+  const m = S.ctl + ' ' + rname(u) + ', ' + (S.op.g==='f' ? 'תזמיני' : 'תזמין') + ' לי ' + inc.missing.map(k => EXT[k].ask).join(' ו') + (one==='101' ? ' דחוף.' : ' בדחיפות.');
+  log('bad', rname(u), m + ' (לא הוזמן מראש)'); renderIncs(); radioSay(m, {u, siren: inc.urgent ? 'yelp' : null, rep: one ? 'need-' + one + (S.op.g==='f' ? '' : '-m') : null});
   inc.shown = inc.crews.concat(inc.missing);
 }
 function closeInc(inc){
