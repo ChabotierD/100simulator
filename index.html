@@ -268,7 +268,31 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .unit.scene .stx{background:rgba(255,59,71,.16);color:#ff7d86}
 .unit:not(:disabled):hover{border-color:var(--blue);background:rgba(47,125,255,.08)}
 .unit[aria-pressed="true"]{border-color:var(--brand);background:rgba(47,214,255,.12);box-shadow:0 0 14px rgba(47,214,255,.3)}
-.unit:disabled{cursor:default}
+.unit:disabled,.unit.busy{cursor:pointer}
+.unit{grid-template-columns:34px auto 1fr auto 26px}
+.unit .inf{width:24px;height:24px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-size:13px;font-weight:800;color:var(--muted);font-style:normal}
+.unit .inf:hover{border-color:var(--brand);color:var(--brand)}
+#unitCard{position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:rgba(2,6,16,.55);backdrop-filter:blur(3px)}
+#unitCard.hidden{display:none}
+#unitCard .uc{width:min(380px,92vw);background:linear-gradient(180deg,#0f1e38,#0a1426);border:1px solid rgba(90,166,255,.35);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.6);overflow:hidden}
+#unitCard .uch{display:flex;align-items:center;gap:12px;padding:14px 16px;background:rgba(47,125,255,.12);border-bottom:1px solid var(--line)}
+#unitCard .uch svg{width:44px;height:24px}
+#unitCard .uch b{font-size:26px;font-weight:900;font-variant-numeric:tabular-nums}
+#unitCard .uch .t{color:var(--muted);font-size:13px}
+#unitCard .uch .stx{margin-inline-start:auto;font-size:12.5px;font-weight:700;border-radius:5px;padding:3px 10px}
+#unitCard .free{background:rgba(53,211,154,.15);color:var(--ok)} #unitCard .enroute{background:rgba(255,181,61,.15);color:var(--accent)} #unitCard .scene{background:rgba(255,59,71,.16);color:#ff7d86}
+#unitCard .ucb{padding:12px 16px 16px}
+#unitCard h4{margin:8px 0 6px;font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.3px}
+#unitCard .crew{display:grid;gap:6px}
+#unitCard .crew div{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+#unitCard .rk{min-width:52px;text-align:center;font-size:12px;font-weight:800;color:#0a1426;background:#c9a646;border-radius:4px;padding:1px 6px}
+#unitCard .role{margin-inline-start:auto;color:var(--muted);font-size:12px}
+#unitCard .ev{background:rgba(255,59,71,.08);border:1px solid rgba(255,59,71,.3);border-radius:8px;padding:8px 10px;line-height:1.55}
+#unitCard .ev .no{font-weight:900;color:#ff9aa1;font-variant-numeric:tabular-nums}
+#unitCard .ev.none{background:rgba(53,211,154,.07);border-color:rgba(53,211,154,.3)}
+#unitCard .uca{display:flex;gap:8px;margin-top:12px}
+#unitCard .uca button{flex:1;padding:9px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:inherit;font:inherit;font-weight:700}
+#unitCard .uca .pri{background:var(--brand);border-color:var(--brand);color:#04101f}
 
 /* radio */
 #logPanel{flex:1}
@@ -539,7 +563,8 @@ html.compact-mode #quickAns span{flex:1}
       </section>
     </div>
   </div>
-  <nav id="tabbar" aria-label="מסכי המשחק">
+  <div id="unitCard" class="hidden" role="dialog" aria-modal="true" aria-label="פרטי ניידת"><div class="uc" id="ucBox"></div></div>
+<nav id="tabbar" aria-label="מסכי המשחק">
     <button type="button" data-view="call" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z" fill="currentColor"/></svg><span>שיחות</span><i class="badge" id="bCall"></i></button>
     <button type="button" data-view="map" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" fill="currentColor"/></svg><span>מפה</span><i class="badge" id="bMap"></i></button>
     <button type="button" data-view="units" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11l1.6-4.4A2 2 0 0 1 8.5 5h7a2 2 0 0 1 1.9 1.6L19 11h1a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-1a2 2 0 0 1-4 0H9a2 2 0 0 1-4 0H4a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1zm2.2 0h9.6l-1.1-3.4a.6.6 0 0 0-.6-.4H8.9a.6.6 0 0 0-.6.4zM7 13.5a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4zm10 0a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4zM10 2h4v2h-4z" fill="currentColor"/></svg><span>כוחות</span><i class="badge ok" id="bUnits"></i></button>
@@ -664,6 +689,17 @@ const DISTRICTS = [
   ]}
 ];
 
+// Who sits in each unit: names and ranks. Ranks run שוטר < סמ״ר < רס״ל < רס״מ < רס״ב < מפקח < פקד.
+const FIRST = ['שי','יוסי','אבי','רועי','עמית','איתי','דור','אלון','מורן','שירן','נועה','עדי','ליאור','תומר','אסף','רז','גל','בן','יעל','מאיה','אוריה','אליה','דניאל','עומר','נתנאל','סהר','מיכל','חן'];
+const LAST = ['כהן','לוי','מזרחי','פרץ','ביטון','אברהם','פרידמן','אזולאי','דהן','חדד','גבאי','שפירא','בן דוד','אוחיון','קליין','עמר','יוסף','מלכה','רוזן','אלמוג','סעדה','נחום'];
+function makeCrew(d){
+  const used = new Set(), who = (rank, role) => { let n; do n = pick(FIRST) + ' ' + pick(LAST); while(used.has(n)); used.add(n); return {rank, name:n, role}; };
+  if(d.cs==='401') return [who('פקד','מפקד המשמרת'), who('רס״ב','נהג')];
+  if(d.cs==='402') return [who('מפקח','סגן המפקד'), who(pick(['רס״מ','רס״ב']),'נהג')];
+  if(/אופנוען/.test(d.type)) return [who(pick(['רס״ל','רס״מ','רס״ב']),'רוכב')];
+  if(d.w===2) return [who('מפקח','מפקד הצוות'), who('רס״ב','סגן'), who('רס״ל','לוחם'), who(pick(['סמ״ר','שוטר']),'לוחם')];
+  return [who(pick(['רס״מ','רס״ל','רס״ב']),'מפקד הניידת'), who(pick(['שוטר','סמ״ר','רס״ל']),'נהג')];
+}
 // All units a station can field, in the order they join a shift. w = how much the unit counts toward the forces an incident needs.
 const UNIT_DEFS = [
  {cs:'401', type:'ראש משמרת סיור', speed:4.6, w:1, ord:0},
@@ -1386,7 +1422,7 @@ function startShift(district, city){
   const spots = shuffle([...nodes.keys()].filter(i => i!==stIdx));
   S.units = UNIT_DEFS.slice(0, count).sort((a,b) => a.ord-b.ord).map((d,i) => {
     const ni = d.w===2 ? stIdx : spots[i % spots.length];
-    return {cs:d.cs, type:d.type, kind: d.w===2 ? 'van' : /אופנוען/.test(d.type) ? 'moto' : 'car', ang:0, speed:d.speed, w:d.w, node:ni, x:nodes[ni].x, y:nodes[ni].y, state:'free', path:[], inc:null, sel:false, urgent:false};
+    return {crew:makeCrew(d), cs:d.cs, type:d.type, kind: d.w===2 ? 'van' : /אופנוען/.test(d.type) ? 'moto' : 'car', ang:0, speed:d.speed, w:d.w, node:ni, x:nodes[ni].x, y:nodes[ni].y, state:'free', path:[], inc:null, sel:false, urgent:false};
   });
   for(let i=0;i<14;i++){ const a = Math.floor(Math.random()*nodes.length), b = pick([...S.graph.adj[a]]); S.civ.push({a, b, t:Math.random(), sp:rnd(1.6,2.6)}); }
   $('#hCity').textContent = city.name; $('#hDist').textContent = district.name + ' · ' + city.sub;
@@ -1897,20 +1933,55 @@ function renderUnits(){
   if(S && S.active && compact && !renderUnits.busy){ renderUnits.busy = true; try{ renderCall(); }finally{ renderUnits.busy = false; } }
   const lab = {free:'זמין', enroute:'בדרך', scene:'בזירה'};
   $('#units').innerHTML = S.units.map((u,i) =>
-    `<button type="button" class="unit ${u.state}" data-u="${i}" aria-pressed="${u.sel}" ${u.state!=='free'?'disabled':''}>
+    `<button type="button" class="unit ${u.state}${u.state!=='free'?' busy':''}" data-u="${i}" aria-pressed="${u.sel}">
       ${UICON[u.kind]}<span class="cs">${u.cs}</span><span class="ty">${u.type} · ${esc(u.state!=='free' && u.inc ? u.inc.c.hood : S.nodes[u.node].n)}</span>
-      <span class="stx">${lab[u.state]}${u.state==='enroute' && u.urgent ? ' מבצעי' : ''}</span></button>`).join('');
+      <span class="stx">${lab[u.state]}${u.state==='enroute' && u.urgent ? ' מבצעי' : ''}</span><i class="inf" data-info="${i}" title="פרטי הצוות">i</i></button>`).join('');
   const n = S.units.filter(u => u.sel).length;
   $('#selCount').textContent = n ? n + ' מסומנים' : S.units.filter(u => u.state==='free').length + ' זמינים';
 }
 $('#units').addEventListener('click', e => {
+  const inf = e.target.closest('[data-info]'); if(inf){ unitCard(S.units[+inf.dataset.info]); return; }
   const b = e.target.closest('[data-u]'); if(!b) return;
-  const u = S.units[+b.dataset.u]; if(u.state!=='free') return;
+  const u = S.units[+b.dataset.u]; if(u.state!=='free'){ unitCard(u); return; }
   u.sel = !u.sel; if(S.active) S.active.hint = ''; renderUnits(); if(S.active) renderCall();
 });
 
+// The unit card: crew, ranks, and the incident it is handling. Opens from the forces board and from the map.
+let cardU = null;
+function unitCard(u){
+  cardU = u; if(!u){ $('#unitCard').classList.add('hidden'); return; }
+  const lab = {free:'זמין', enroute:'בדרך לאירוע', scene:'בזירה'}, inc = u.inc, c = inc && inc.c;
+  const eta = u.state==='enroute' ? Math.max(1, Math.round(pathLen(u) / (u.speed * (u.urgent?1:0.58)))) : 0;
+  const where = u.state==='free' ? S.nodes[u.node].n : c ? c.hood : '';
+  const ev = c ? `<div class="ev"><span class="no">אירוע ${c.no}</span> · ${esc(c.sc.t)}<br>${esc(addrText(c))}${eta ? '<br>הגעה משוערת בעוד ' + eta + ' שניות' + (u.urgent ? ' · נסיעה מבצעית' : '') : ''}${inc.units.length > 1 ? '<br>יחד עם ' + inc.units.filter(x => x!==u).map(x => esc(x.cs)).join(', ') : ''}</div>`
+    : `<div class="ev none">פנוי לשיגור · ${esc(where)}</div>`;
+  $('#ucBox').innerHTML = `<div class="uch">${UICON[u.kind]}<div><b>${esc(u.cs)}</b><div class="t">${esc(u.type)} · ${esc(S.city.radio)}</div></div><span class="stx ${u.state}">${lab[u.state]}</span></div>
+    <div class="ucb"><h4>צוות</h4><div class="crew">${u.crew.map(m => `<div><span class="rk">${m.rank}</span><span>${esc(m.name)}</span><span class="role">${esc(m.role)}</span></div>`).join('')}</div>
+    <h4>משימה</h4>${ev}
+    <div class="uca">${u.state==='free' ? `<button type="button" class="pri" data-ucsel>${u.sel ? 'בטל סימון' : 'סמן לשיגור'}</button>` : ''}<button type="button" data-ucx>סגור</button></div></div>`;
+  $('#unitCard').classList.remove('hidden');
+}
+function pathLen(u){ let d = 0, x = u.x, y = u.y; for(const p of u.path){ d += Math.hypot(p.x-x, p.y-y); x = p.x; y = p.y; } return d; }
+$('#unitCard').addEventListener('click', e => {
+  if(e.target.closest('[data-ucsel]') && cardU){ cardU.sel = !cardU.sel; renderUnits(); if(S.active){ S.active.hint = ''; renderCall(); } unitCard(null); return; }
+  if(e.target.closest('[data-ucx]') || e.target.id==='unitCard') unitCard(null);
+});
+document.addEventListener('keydown', e => { if(e.key==='Escape' && cardU) unitCard(null); });
+setInterval(() => { if(cardU && S && !S.over) unitCard(cardU); }, 1000);   // the card follows the unit while it is open
+
 /* ================= MAP ================= */
 const cv = $('#map'); let cx = cv.getContext('2d');
+cv.addEventListener('click', e => {                        // a tap on a unit on the map opens its card
+  if(!S || S.over) return;
+  const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  let best = null, bd = 26;
+  for(const u of S.units){ const d = Math.hypot(PX(u.x) - mx, PY(u.y) - my); if(d < bd){ bd = d; best = u; } }
+  if(best) unitCard(best);
+});
+cv.addEventListener('mousemove', e => {
+  if(!S) return; const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  cv.style.cursor = S.units.some(u => Math.hypot(PX(u.x) - mx, PY(u.y) - my) < 26) ? 'pointer' : '';
+});
 let CW = 0, CH = 0;
 function sizeCanvas(){
   const r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio||1);
@@ -2290,7 +2361,7 @@ function drawCine(c){
 
 /* ================= END ================= */
 function gradeOf(a){ return a==null ? ['–','לא טופלו אירועים במשמרת'] : a>=90 ? ['מצטיין','אפשר לסמוך עליך בלילה עמוס'] : a>=80 ? ['טוב מאוד','משמרת יציבה, עוד קצת דיוק'] : a>=70 ? ['טוב','הסיווג טוב, אפשר לאסוף יותר מידע'] : a>=55 ? ['מספיק','שואלים יותר ושולחים מדויק יותר'] : ['נכשל','כדאי לחזור על הנהלים ולנסות שוב']; }
-function endShift(){
+function endShift(){ unitCard(null);
   if(CINE){ CINE.done = null; endCine(); }
   S.over = true; cancelAnimationFrame(raf); hush(); ambience(false); keepAwake(false); $('#quickAns').classList.add('hidden');
   const a = avg(), n = S.rec.length, g = gradeOf(a);
