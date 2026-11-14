@@ -1255,7 +1255,8 @@ function radioTx(dur, siren, unit){
 // Openers: 'open|<station on the radio>|<call sign>'. Reports: 'rep|<report>' or 'rep|<report>|<control>' for one district only.
 // Reports: go-op יוצא בנסיעה מבצעית, go יוצא לאירוע, arrive-f / arrive-m סמני / סמן לי הגעה, noaddr אין מספר בית, scene בזירה,
 // need-101 / need-102 / need-106 תזמיני לי מד״א / כיבוי / עירייה (need-101-m ... for a male operator, else the same file), done סיום טיפול, patrol סיור שגרתי.
-// Station file names: netanya, kfarsaba, pt, rishon, telaviv, ramatgan, holon, haifa, hadera, zevulun. Units: 401 402 403 404 411 412 yasam.
+// Station file names: netanya, kfarsaba, pt, rishon, telaviv, ramatgan, holon, haifa, hadera, zevulun. Units: 401 402 403 404 411 412 11.
+// The יס״מ goes by name alone, one opener per district: 'open|מרכז|יס״מ', 'open|אביב|יס״מ', 'open|חוף|יס״מ'.
 const STATION_FILE = {'נתניה':'netanya','סבא':'kfarsaba','פ״ת':'pt','ראשון':'rishon','אביב':'telaviv','גן':'ramatgan','חולון':'holon','חיפה':'haifa','חדרה':'hadera','זבולון':'zevulun'};
 const CLIPS = {'open|נתניה|401':'voice/a401.mp3', 'rep|arrive-f|מרכז':'voice/a402.mp3'};
 const clipBuf = {}; let clipChain = Promise.resolve();
@@ -1296,7 +1297,7 @@ function radioSay(text, o){
   const alt = o.rep ? ({'arrive-m':'arrive-f', 'arrive-f':'arrive-m'}[o.rep] || (/-m$/.test(o.rep) ? o.rep.slice(0,-2) : null)) : null;
   const clip = A.sound && A.ctx ? (findRep(o.rep) || findRep(alt)) : null;   // until both versions exist, one stands in for the other
   if(clip){                                                 // the recorded report, on its own: no built-in voice on top of it
-    const opener = o.u && S ? clipFor('open|' + S.city.radio + '|' + o.u.cs) : null;
+    const opener = o.u && S ? clipFor(/^\d/.test(o.u.cs) ? 'open|' + S.city.radio + '|' + o.u.cs : 'open|' + S.ctl + '|' + o.u.cs) : null;   // the יס״מ opener is one per district
     const moto = isMoto(o.u); bedStart(o.siren, o.u || true); const mine = bed;
     if(opener){ playClip(opener, moto); clipChain = clipChain.then(() => new Promise(r => setTimeout(r, 450))); }   // the unit calls in, a beat, then the report
     playClip(clip, moto).then(() => { if(bed === mine) bedStop(); });
@@ -1516,7 +1517,7 @@ function route(from, to){
   return path;
 }
 // "נתניה 401" on the radio. The riot unit is called by its name and station.
-function rname(u){ return /^\d/.test(u.cs) ? S.city.radio + ' ' + u.cs : u.cs + ' ' + S.city.radio; }
+function rname(u){ return /^\d/.test(u.cs) ? S.city.radio + ' ' + u.cs : u.cs; }   // patrols go by station ('נתניה 401'), the יס״מ by its name alone
 
 // The map and addresses speak in areas, not neighbourhood names: צפון העיר, מרכז העיר, אזור התעשייה, and the police station.
 function zoneOf(n, cx0, cy0){
@@ -1811,7 +1812,7 @@ function decide(act){
 
 function unitNames(units){
   const cars = units.filter(u => u.w===1).map(u => u.cs), riot = units.some(u => u.w===2);
-  return (cars.length ? S.city.radio + ' ' + cars.join(', ') : '') + (riot ? (cars.length ? ' ו' : '') + 'יס״מ ' + S.city.radio : '');
+  return (cars.length ? S.city.radio + ' ' + cars.join(', ') : '') + (riot ? (cars.length ? ' ו' : '') + 'יס״מ' : '');
 }
 function whereText(inc){ const c = inc.c; return inc.hasAddr ? addrText(c) : (stName(c.st) + ', ' + c.hood + ', אין מספר בית'); }
 function sendUnits(inc, units, urgent){
