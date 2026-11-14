@@ -308,6 +308,16 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 #unitCard .uca .rel{border-color:rgba(255,181,61,.6);color:var(--accent)}
 .irow .iu{background:rgba(47,125,255,.12);border:1px solid rgba(90,166,255,.4);border-radius:5px;padding:0 6px;color:#cfe1f8;font:inherit;font-weight:700;font-size:12px;cursor:pointer}
 .irow .iu:hover{border-color:var(--brand)}
+#crewReq{position:fixed;top:72px;left:50%;transform:translateX(-50%);z-index:58;width:min(400px,94vw)}
+#crewReq.hidden{display:none}
+#crewReq .cr{background:linear-gradient(180deg,#2a0f16,#14080c);border:1px solid rgba(255,59,71,.6);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.6),0 0 24px rgba(255,59,71,.25);padding:12px 14px}
+#crewReq .crh{display:flex;align-items:center;gap:8px} #crewReq .crh b{flex:1;font-size:15px}
+#crewReq .crdot{width:10px;height:10px;border-radius:50%;background:#ff3b47;box-shadow:0 0 10px #ff3b47}
+#crewReq .x{background:none;border:0;color:var(--muted);font-size:16px;cursor:pointer}
+#crewReq .crw{margin:8px 0 4px;font-weight:700} #crewReq .crw span{font-weight:400;color:var(--muted);font-size:13px}
+#crewReq .crq{margin:0 0 10px;color:#ffb3b8}
+#crewReq .crb{display:flex;gap:8px} #crewReq .crb button{flex:1;padding:10px;border-radius:8px;border:0;font:inherit;font-weight:800;cursor:pointer;color:#fff}
+#crewReq .k101{background:#d8202f} #crewReq .k102{background:#e0701a} #crewReq .k106{background:#2f7dff}
 #unitCard .ucnote{margin:8px 0 0;font-size:12px;color:var(--muted)}
 #unitCard .bar{height:4px;background:linear-gradient(90deg,#ff2b3d 0 50%,#2f7dff 50% 100%)}
 #unitCard .av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:13px;background:linear-gradient(160deg,#1d3d74,#0e1f3d);border:1px solid rgba(90,166,255,.4);color:#cfe1f8;flex:none}
@@ -369,6 +379,22 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .card td{padding:8px 4px;border-bottom:1px solid rgba(255,255,255,.07);vertical-align:top}
 .card td:last-child{text-align:left;font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap}
 .card td small{display:block;color:var(--muted)}
+.ehint{color:var(--muted);font-size:12.5px;margin:10px 0 6px}
+.er{border:1px solid var(--line);border-radius:9px;margin-bottom:7px;background:rgba(255,255,255,.025)}
+.er summary{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;list-style:none}
+.er summary::-webkit-details-marker{display:none}
+.er summary:after{content:"‹";color:var(--muted);font-size:18px;transition:transform .15s}
+.er[open] summary:after{transform:rotate(-90deg)}
+.er .eno{font-variant-numeric:tabular-nums;color:#9cc4ff;font-weight:700;font-size:13px;white-space:nowrap}
+.er .et{flex:1;font-weight:700}
+.er .es{font-weight:900;font-variant-numeric:tabular-nums;border-radius:6px;padding:2px 9px;white-space:nowrap}
+.er.hi .es{background:rgba(53,211,154,.16);color:var(--ok)} .er.mid .es{background:rgba(255,181,61,.16);color:var(--accent)} .er.lo .es{background:rgba(255,59,71,.16);color:#ff7d86}
+.er .ed{padding:2px 12px 12px;border-top:1px solid var(--line)}
+.er .pr{display:grid;grid-template-columns:82px 1fr 46px;gap:4px 10px;align-items:center;padding:7px 0;border-bottom:1px dashed rgba(255,255,255,.06)}
+.er .pk{font-weight:700;font-size:13px} .er .pv{font-variant-numeric:tabular-nums;font-weight:800;font-size:13px;text-align:left}
+.er .pb{height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden} .er .pb i{display:block;height:100%;background:linear-gradient(90deg,#1f9bff,#56e2ff);border-radius:3px}
+.er .pr small{grid-column:1/-1;color:var(--muted);font-size:12px}
+.er .lesson{margin:8px 0 0;font-size:12.5px;color:#ffd58a;background:rgba(255,181,61,.08);border-radius:6px;padding:6px 9px}
 
 /* ---------- phones and small screens: one screen at a time, switched from a tab bar ---------- */
 #tabbar{display:none}
@@ -588,6 +614,7 @@ html.compact-mode #quickAns span{flex:1}
     </div>
   </div>
   <div id="unitCard" class="hidden" role="dialog" aria-modal="true" aria-label="פרטי ניידת"><div class="uc" id="ucBox"></div></div>
+<div id="crewReq" class="hidden" role="alertdialog" aria-live="assertive"></div>
 <nav id="tabbar" aria-label="מסכי המשחק">
     <button type="button" data-view="call" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z" fill="currentColor"/></svg><span>שיחות</span><i class="badge" id="bCall"></i></button>
     <button type="button" data-view="map" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" fill="currentColor"/></svg><span>מפה</span><i class="badge" id="bMap"></i></button>
@@ -1524,7 +1551,7 @@ function tick(dt){
     c.wait += dt; ringing = true;
     if(c.wait > RING_LIMIT){
       S.calls.splice(S.calls.indexOf(c),1);
-      record('שיחה שלא נענתה', 0, 'המתקשר ניתק אחרי ' + RING_LIMIT + ' שניות המתנה.', false);
+      REC_C = c; record('שיחה שלא נענתה', 0, 'המתקשר ניתק אחרי ' + RING_LIMIT + ' שניות המתנה.', false);
       renderQueue();
     }
   }
@@ -1653,7 +1680,7 @@ function answer(i){
   if(c.held){                                               // back to a caller who was waiting on hold
     c.held = false; c.q.unshift({who:'op', text:'תודה שהמתנת.'}); c.nextAt = S.t + 0.1;
   } else {
-    c.answeredAt = S.t;
+    c.answeredAt = S.t; c.waitAns = c.wait;
     c.base = S.shift.start*3600 + Math.floor(S.t / SHIFT_LEN * 28800); c.opened = fmtS(c.base);
     const hi = 'משטרה שלום, ' + (S.op.g==='f' ? 'מדברת ' : 'מדבר ') + S.op.name + '.';
     c.lines.push({who:'op', text:hi, ts:c.opened}); say(hi, {force:true, g:S.op.g, rate:1.08, pitch:S.op.g==='f' ? 1.1 : 0.95});
@@ -1715,7 +1742,7 @@ function decide(act){
     c.hint = ''; renderCall(); renderUnits(); return;      // the line stays open after forces are sent
   } else {
     if(act==='t' && !crews.length){ c.hint = 'קודם מסמנים לאיזה גורם להעביר: מד״א, כיבוי או עירייה.'; renderCall(); return; }
-    hush();
+    hush(); REC_C = c;
     if(sc.pri < 3){
       record(sc.t, 0, 'האירוע דרש ניידת ולא נשלח אליו כוח.', false);
       log('bad', S.ctl, 'דיווח חוזר מ' + c.hood + ': ' + sc.t + '. לא נשלח כוח בקריאה הראשונה.');
@@ -1785,6 +1812,24 @@ function addCrew(inc, k){
   if(inc.missing) inc.missing = inc.missing.filter(x => x!==k);
   sfx.radio(); log('ops', S.ctl, EXT[k].n + ' עודכן, ' + EXT[k].crew + ' בדרך למקום.'); renderIncs();
 }
+// A unit on scene asks for an ambulance or fire crew: a window tied to the incident, one button per crew to report to.
+let CREW_INC = null;
+function crewAsk(inc, u){
+  CREW_INC = inc; const box = $('#crewReq'); if(!box) return;
+  const want = (inc.missing||[]).filter(k => !inc.crews.includes(k));
+  if(!want.length){ box.classList.add('hidden'); CREW_INC = null; return; }
+  const btn = {'101':'דווח למד״א', '102':'דווח לכיבוי', '106':'דווח לעירייה'};
+  box.innerHTML = `<div class="cr"><div class="crh"><span class="crdot"></span><b>בקשת סיוע מהזירה</b><button type="button" class="x" data-crx aria-label="סגירה">✕</button></div>
+    <p class="crw">אירוע ${esc(inc.c.no)} · ${esc(inc.sc.t)}<br><span>${esc(addrText(inc.c))}</span></p>
+    <p class="crq">${esc(rname(u || inc.units[0]))}: נדרש ${want.map(k => EXT[k].crew).join(' ו')}</p>
+    <div class="crb">${want.map(k => `<button type="button" data-crk="${k}" class="k${k}">${btn[k]}</button>`).join('')}</div></div>`;
+  box.classList.remove('hidden'); try{ if(navigator.vibrate) navigator.vibrate(120); }catch(e){}
+}
+document.addEventListener('click', e => {
+  const k = e.target.closest('[data-crk]');
+  if(k && CREW_INC){ if(S.incs.includes(CREW_INC)) addCrew(CREW_INC, k.dataset.crk); if(S.active) renderCall(); crewAsk(CREW_INC); return; }
+  if(e.target.closest('[data-crx]')){ $('#crewReq').classList.add('hidden'); CREW_INC = null; }
+});
 // What the caller says after the forces left is passed on to them over the radio.
 function relay(c, id){
   const inc = c.inc; if(!inc || !S.incs.includes(inc)) return;
@@ -1821,51 +1866,65 @@ function askForCrew(inc){
   inc.late = true;
   const u = inc.units[0], one = inc.missing.length===1 ? inc.missing[0] : null;          // "תזמיני לי מד״א דחוף", said to the operator
   const m = S.ctl + ' ' + rname(u) + ', ' + (S.op.g==='f' ? 'תזמיני' : 'תזמין') + ' לי ' + inc.missing.map(k => EXT[k].ask).join(' ו') + (one==='101' ? ' דחוף.' : ' בדחיפות.');
-  log('bad', rname(u), m + ' (לא הוזמן מראש)'); renderIncs(); radioSay(m, {u, siren: inc.urgent ? 'yelp' : null, rep: one ? 'need-' + one + (S.op.g==='f' ? '' : '-m') : null});
+  log('bad', rname(u), m + ' (לא הוזמן מראש)'); renderIncs(); crewAsk(inc, u); radioSay(m, {u, siren: inc.urgent ? 'yelp' : null, rep: one ? 'need-' + one + (S.op.g==='f' ? '' : '-m') : null});
   inc.shown = inc.crews.concat(inc.missing);
 }
 function closeInc(inc){
-  S.incs.splice(S.incs.indexOf(inc),1); renderIncs();
+  S.incs.splice(S.incs.indexOf(inc),1); renderIncs(); if(CREW_INC === inc){ $('#crewReq').classList.add('hidden'); CREW_INC = null; }
   const sc = inc.sc, lead = inc.units[0], n = inc.units.reduce((a,x) => a + x.w, 0);
-  let score, note, ok, result;
+  let score, note, ok, result, parts = [];
+  const ar = answerRow(inc.c);
   if(sc.pri===3){
-    score = 25; ok = false; result = sc.np; note = sc.tip;
+    const d = 22; parts = [ar || {k:'זמן מענה', got:0, max:10, txt:''}, {k:'החלטה', got:d, max:90, txt:'נשלחה ניידת לפנייה שלא דרשה אותה. ' + sc.tip}];
+    score = parts[0].got + d; ok = false; result = sc.np; note = sc.tip;
   } else {
-    const need = sc.need, short = n < need, notes = [];
-    let s = 0;
-    if((sc.pri===1) === inc.urgent) s += 25;
-    else if(sc.pri===1){ s += 8; notes.push('האירוע דרש נסיעה מבצעית.'); }
-    else { s += 16; notes.push('נסיעה רגילה הייתה מספיקה.'); }
-    if(short){ s += 6; notes.push('נדרשו ' + need + ' כוחות.'); }
-    else { const extra = n-need; s += Math.max(4, 20 - extra*7); if(extra>0) notes.push('נשלחו יותר כוחות מהנדרש.'); }
+    const need = sc.need, short = n < need, notes = [], P = (k, got, max, txt) => parts.push({k, got, max, txt});
+    if(ar) P(ar.k, ar.got, 10, ar.txt); else P('זמן מענה', 10, 10, '');
+    if((sc.pri===1) === inc.urgent) P('סוג נסיעה', 20, 20, inc.urgent ? 'נסיעה מבצעית, כנדרש.' : 'נסיעה רגילה, כנדרש.');
+    else if(sc.pri===1){ P('סוג נסיעה', 6, 20, 'האירוע דרש נסיעה מבצעית.'); notes.push('האירוע דרש נסיעה מבצעית.'); }
+    else { P('סוג נסיעה', 13, 20, 'נסיעה רגילה הייתה מספיקה.'); notes.push('נסיעה רגילה הייתה מספיקה.'); }
+    if(short){ P('כמות כוחות', 6, 20, 'נשלחו ' + n + ', נדרשו ' + need + '.'); notes.push('נדרשו ' + need + ' כוחות.'); }
+    else { const extra = n-need; P('כמות כוחות', Math.max(4, 20 - extra*7), 20, extra > 0 ? 'נשלחו ' + n + ', מספיקים ' + need + '.' : 'נשלחו ' + n + ' כוחות, כנדרש.'); if(extra>0) notes.push('נשלחו יותר כוחות מהנדרש.'); }
     const req = sc.ext||[], okc = req.concat(sc.opt||[]);
     const missing = req.filter(k => !inc.crews.includes(k)), extraC = inc.crews.filter(k => !okc.includes(k));
-    if(missing.length) notes.push('לא הוזעק ' + missing.map(k => EXT[k].n).join(', ') + '.');
-    else if(extraC.length){ s += 5; notes.push('הוזעק בלי צורך: ' + extraC.map(k => EXT[k].n).join(', ') + '.'); }
-    else if(inc.late){ s += 5; notes.push('גורם חיצוני הוזעק רק אחרי שהכוח ביקש אותו.'); }
-    else s += 10;
+    if(missing.length){ P('גורמי חוץ', 0, 10, 'לא הוזעק ' + missing.map(k => EXT[k].n).join(', ') + '.'); notes.push('לא הוזעק ' + missing.map(k => EXT[k].n).join(', ') + '.'); }
+    else if(extraC.length){ P('גורמי חוץ', 5, 10, 'הוזעק בלי צורך: ' + extraC.map(k => EXT[k].n).join(', ') + '.'); notes.push('הוזעק בלי צורך: ' + extraC.map(k => EXT[k].n).join(', ') + '.'); }
+    else if(inc.late){ P('גורמי חוץ', 5, 10, 'הוזעק רק אחרי שהכוח ביקש.'); notes.push('גורם חיצוני הוזעק רק אחרי שהכוח ביקש אותו.'); }
+    else P('גורמי חוץ', 10, 10, req.length ? 'הוזעקו ' + req.map(k => EXT[k].n).join(', ') + ' בזמן.' : 'לא נדרשו.');
     const target = sc.pri===1 ? 60 : 115, took = inc.arrivedAt - inc.t0;
-    s += Math.round(25 * clamp(1 - (took-target)/target, 0, 1));
+    P('זמן הגעה', Math.round(20 * clamp(1 - (took-target)/target, 0, 1)), 20, Math.round(took) + ' שניות, היעד ' + target + '.');
     if(took > target) notes.push('זמן הגעה ' + Math.round(took) + ' שניות, היעד ' + target + '.');
-    if(inc.hasAddr) s += 10; else notes.push('לא נלקחה כתובת מדויקת.');
-    const keys = sc.qs.map((x,i) => x.k ? i : -1).filter(i => i>=0), keyFrac = keys.length ? keys.filter(i => inc.c.rev[i]).length/keys.length : 1;
-    s += Math.round(10 * keyFrac);
+    if(inc.hasAddr) P('כתובת', 10, 10, 'נלקחה כתובת מדויקת.'); else { P('כתובת', 0, 10, 'לא נלקחה כתובת מדויקת, הכוח חיפש ברחוב.'); notes.push('לא נלקחה כתובת מדויקת.'); }
+    const keys = sc.qs.map((x,i) => x.k ? i : -1).filter(i => i>=0), got = keys.filter(i => inc.c.rev[i]).length, keyFrac = keys.length ? got/keys.length : 1;
+    P('תחקור', Math.round(10 * keyFrac), 10, keys.length ? got + ' מתוך ' + keys.length + ' שאלות חשובות נשאלו.' : 'לא נדרש.');
     if(keyFrac < 1) notes.push('חסר מידע חשוב שאפשר היה לקבל מהמתקשר.');
     if(sc.tip && notes.length) notes.push(sc.tip);
-    score = s; ok = !short && !missing.length && s >= 70; result = short ? (sc.bad || sc.good) : sc.good; note = notes.join(' ');
+    score = parts.reduce((a,x) => a + x.got, 0); ok = !short && !missing.length && score >= 70; result = short ? (sc.bad || sc.good) : sc.good; note = notes.join(' ');
+    if(sc.tip && notes.length) parts.push({k:'לקח', got:null, max:null, txt:sc.tip});
   }
   const msg = S.ctl + ' ' + rname(lead) + ', ' + result + '. סיום טיפול.';
   log('radio', rname(lead), msg); radioSay(msg, {u:lead, rep:'done'});
   setTimeout(() => { if(S && !S.over) log('ops', S.ctl, rname(lead) + ' כאן ' + S.ctl + ', קיבלתי. סיום טיפול.'); }, 1200);
   inc.units.forEach(u => { u.state = 'free'; u.inc = null; u.path = []; u.urgent = false; u.idle = rnd(3,8); });
-  record(sc.t, score, note, ok);
+  REC_C = inc.c; record(sc.t, score, note, ok, parts);
   if(S.active === inc.c) closeCall();
   renderUnits();
 }
 
 /* ================= SCORE / LOG ================= */
-function record(title, score, note, ok){
-  S.rec.push({title, score, note:note||''});
+// Every scored call keeps its breakdown for the end-of-shift table: answer time, questioning, dispatch, arrival...
+// parts: [{k:label, got, max, txt}]. Calls closed on the phone get "answer time" (10) plus the decision itself (90).
+let REC_C = null;
+function answerPts(c){ const w = c && c.waitAns!=null ? c.waitAns : null; return w==null ? null : Math.round(10 * clamp(1 - (w - 5)/25, 0, 1)); }
+function answerRow(c){ const p = answerPts(c); return p==null ? null : {k:'זמן מענה', got:p, max:10, txt:Math.round(c.waitAns) + ' שניות עד שנענתה השיחה' + (p < 10 ? ', היעד עד 5 שניות.' : '.')}; }
+function record(title, score, note, ok, parts){
+  const c = REC_C; REC_C = null;
+  if(!parts){                                               // decided on the phone: the decision is 90 points, answering 10
+    const ar = answerRow(c);
+    if(ar){ const d = Math.round(score * 0.9); parts = [ar, {k:'החלטה', got:d, max:90, txt:note || 'החלטה נכונה.'}]; score = ar.got + d; }
+    else parts = [{k:'החלטה', got:score, max:100, txt:note || ''}];
+  }
+  S.rec.push({title, score, note:note||'', no:c ? c.no : '', parts});
   log(ok ? 'good' : (score < 50 ? 'bad' : 'ops'), 'סיכום', title + (note ? '. ' + note : ''), score);
   if(ok) sfx.good(); else if(score < 50) sfx.bad();
   header();
@@ -2491,16 +2550,17 @@ function drawCine(c){
 
 /* ================= END ================= */
 function gradeOf(a){ return a==null ? ['–','לא טופלו אירועים במשמרת'] : a>=90 ? ['מצטיין','אפשר לסמוך עליך בלילה עמוס'] : a>=80 ? ['טוב מאוד','משמרת יציבה, עוד קצת דיוק'] : a>=70 ? ['טוב','הסיווג טוב, אפשר לאסוף יותר מידע'] : a>=55 ? ['מספיק','שואלים יותר ושולחים מדויק יותר'] : ['נכשל','כדאי לחזור על הנהלים ולנסות שוב']; }
-function endShift(){ unitCard(null);
+function endShift(){ unitCard(null); $('#crewReq').classList.add('hidden'); CREW_INC = null;
   if(CINE){ CINE.done = null; endCine(); }
   S.over = true; cancelAnimationFrame(raf); hush(); ambience(false); keepAwake(false); $('#quickAns').classList.add('hidden');
   const a = avg(), n = S.rec.length, g = gradeOf(a);
-  const rows = S.rec.map(r => `<tr><td>${esc(r.title)}${r.note ? `<small>${esc(r.note)}</small>` : ''}</td><td>${r.score}</td></tr>`).join('');
+  const rows = S.rec.map((r,i) => `<details class="er ${r.score>=85?'hi':r.score>=60?'mid':'lo'}"><summary><span class="eno">${r.no ? 'אירוע ' + esc(r.no.replace('E-','')) : ''}</span><span class="et">${esc(r.title)}</span><span class="es">${r.score} נק׳</span></summary>
+    <div class="ed">${(r.parts||[]).map(p => p.max==null ? `<p class="lesson">${esc(p.txt)}</p>` : `<div class="pr"><span class="pk">${esc(p.k)}</span><span class="pb"><i style="width:${p.max ? Math.round(p.got/p.max*100) : 0}%"></i></span><span class="pv">${p.got}/${p.max}</span><small>${esc(p.txt||'')}</small></div>`).join('')}</div></details>`).join('');
   $('#endCard').innerHTML = `<div class="card-head"><h2>סיכום ${S.shift.name} · ${esc(S.city.name)}</h2><button type="button" class="x" id="btnClose" aria-label="סגירת הסיכום">✕</button></div>
     <div class="card-in"><div class="scoreline"><span class="big">${a==null ? '–' : a}<small> מתוך 100</small></span><span class="grade">${g[0]}</span></div>
     <p class="rank">${g[1]} · ${n} אירועים · ${S.units.length} צוותים</p>
     <div class="actions"><button class="go" id="btnAgain" type="button">משמרת חדשה</button><button class="ghost" id="btnHome" type="button">סיום וחזרה לבחירת עיר</button></div>
-    <div class="tblwrap"><table>${rows || '<tr><td>אין אירועים לסיכום.</td><td></td></tr>'}</table></div></div>`;
+    <div class="tblwrap"><p class="ehint">לחיצה על אירוע מציגה את פירוט הניקוד</p>${rows || '<p class="ehint">אין אירועים לסיכום.</p>'}</div></div>`;
   $('#end').classList.remove('hidden');
   const home = () => { $('#end').classList.add('hidden'); $('#game').classList.add('hidden'); $('#start').classList.remove('hidden'); layout(); window.scrollTo(0,0); };
   $('#btnClose').addEventListener('click', home);
