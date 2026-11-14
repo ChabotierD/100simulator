@@ -1,0 +1,1918 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מוקד 100 סימולטור</title>
+<meta name="description" content="מוקד 100: סימולטור מוקד חירום. עונים לקריאות, שואלים את המתקשר ומשגרים ניידות. משחק עצמאי שאינו מוצר רשמי של משטרת ישראל.">
+<meta property="og:title" content="מוקד 100 סימולטור">
+<meta property="og:description" content="משמרת אחת במוקד החירום: קריאות, ניידות והחלטות בזמן אמת.">
+<meta property="og:image" content="hero-wide.jpg">
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a game HUD built from the logo's world. Deep navy, blue light from one side and red from the other, brushed-metal frames with cut corners, one big glowing city map in the middle. */
+:root{
+  color-scheme:dark;
+  --bg:#050b18;
+  --panel:#0a1630;
+  --panel-2:#10224a;
+  --well:#050f22;
+  --line:#1e3560;
+  --text:#edf3fc;
+  --muted:#93a7c4;
+  --brand:#2fd6ff;       /* waveform cyan */
+  --blue:#2f7dff;        /* police blue */
+  --crit:#ff3b47;        /* police red */
+  --accent:#ffb53d;      /* waiting, en route */
+  --ok:#35d39a;
+  --metal:linear-gradient(135deg,#d5deea 0%,#66768e 14%,#1c2b47 40%,#1c2b47 62%,#6f8099 86%,#e3eaf4 100%);
+  --font-body:"Rubik","Heebo",Arial,sans-serif;
+  --ch:12px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:
+    radial-gradient(55% 75% at 0% 55%, rgba(47,125,255,.20), transparent 62%),
+    radial-gradient(55% 75% at 100% 55%, rgba(255,59,71,.15), transparent 62%),
+    var(--bg);
+  background-attachment:fixed;color:var(--text);font-family:var(--font-body);font-size:15px;line-height:1.45}
+button,select{font:inherit;color:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.hidden{display:none !important}
+.num{font-variant-numeric:tabular-nums}
+.disp{font-weight:900;letter-spacing:.01em}
+/* brushed-metal frame with cut corners */
+.frame{position:relative;isolation:isolate;background:var(--metal);
+  clip-path:polygon(var(--ch) 0,calc(100% - var(--ch)) 0,100% var(--ch),100% calc(100% - var(--ch)),calc(100% - var(--ch)) 100%,var(--ch) 100%,0 calc(100% - var(--ch)),0 var(--ch))}
+.frame::before{content:"";position:absolute;inset:1.5px;z-index:-1;background:linear-gradient(180deg,#0c1b3a,#08122a);
+  clip-path:polygon(var(--ch) 0,calc(100% - var(--ch)) 0,100% var(--ch),100% calc(100% - var(--ch)),calc(100% - var(--ch)) 100%,var(--ch) 100%,0 calc(100% - var(--ch)),0 var(--ch))}
+
+/* ---------- start screen ---------- */
+#start{min-height:100%;padding:0 16px 44px}
+.hero{max-width:1200px;margin:0 auto;aspect-ratio:1672/498;background:url(hero-wide.jpg) center top/cover no-repeat;-webkit-mask-image:linear-gradient(#000 74%,transparent);mask-image:linear-gradient(#000 74%,transparent)}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.tagline{margin:0;color:var(--muted);text-align:center;font-size:16px}
+.start-in{width:100%;max-width:880px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+@media (max-width:700px){.hero{margin:0 -16px;aspect-ratio:941/643;background-image:url(hero-tall.jpg)}}
+.step-label{font-weight:700;font-size:14px;color:var(--brand);margin:0 0 8px;display:flex;align-items:center;gap:10px}
+.step-label::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--line))}
+.districts{display:flex;gap:10px;flex-wrap:wrap}
+.districts button,.cities button{--ch:10px;border:0;padding:12px 16px;text-align:right;position:relative;isolation:isolate;background:linear-gradient(135deg,#40516b,#1a2944 40%,#1a2944 60%,#40516b);
+  clip-path:polygon(var(--ch) 0,calc(100% - var(--ch)) 0,100% var(--ch),100% calc(100% - var(--ch)),calc(100% - var(--ch)) 100%,var(--ch) 100%,0 calc(100% - var(--ch)),0 var(--ch))}
+.districts button::before,.cities button::before{content:"";position:absolute;inset:1.5px;z-index:-1;background:var(--panel);
+  clip-path:polygon(var(--ch) 0,calc(100% - var(--ch)) 0,100% var(--ch),100% calc(100% - var(--ch)),calc(100% - var(--ch)) 100%,var(--ch) 100%,0 calc(100% - var(--ch)),0 var(--ch))}
+.districts button{flex:1 1 150px}
+.districts button b{display:block;font-weight:900;font-size:21px}
+.districts button span,.cities button span{font-size:13px;color:var(--muted)}
+.cities{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.cities button b{display:block;font-weight:700;font-size:18px}
+.districts button:hover::before,.cities button:hover::before{background:var(--panel-2)}
+.districts button[aria-pressed="true"],.cities button[aria-pressed="true"]{background:linear-gradient(135deg,var(--brand),var(--blue) 50%,var(--crit))}
+.districts button[aria-pressed="true"]::before,.cities button[aria-pressed="true"]::before{background:linear-gradient(180deg,#12305f,#0a1a38)}
+.districts button[aria-pressed="true"] b,.cities button[aria-pressed="true"] b{color:#fff;text-shadow:0 0 14px rgba(47,214,255,.7)}
+.ops{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ops button{--ch:12px;border:0;padding:2px;text-align:right;position:relative;isolation:isolate;display:block;background:linear-gradient(135deg,#40516b,#1a2944 40%,#1a2944 60%,#40516b);
+  clip-path:polygon(var(--ch) 0,calc(100% - var(--ch)) 0,100% var(--ch),100% calc(100% - var(--ch)),calc(100% - var(--ch)) 100%,var(--ch) 100%,0 calc(100% - var(--ch)),0 var(--ch))}
+.ops .av{display:block;aspect-ratio:16/9;background:var(--well) center/cover no-repeat;filter:saturate(.7) brightness(.7);transition:filter .15s;
+  clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 10px,100% calc(100% - 10px),calc(100% - 10px) 100%,10px 100%,0 calc(100% - 10px),0 10px)}
+.ops .cap{position:absolute;inset:auto 2px 2px 2px;padding:26px 16px 12px;background:linear-gradient(transparent,rgba(3,8,20,.92));display:flex;flex-direction:column}
+.ops .cap b{font-weight:900;font-size:22px}
+.ops .cap span{font-size:13px;color:#b9c9e0}
+.ops button:hover .av{filter:saturate(.9) brightness(.85)}
+.ops button[aria-pressed="true"]{background:linear-gradient(135deg,var(--brand),var(--blue) 50%,var(--crit));filter:drop-shadow(0 0 12px rgba(47,214,255,.35))}
+.ops button[aria-pressed="true"] .av{filter:none}
+.ops button[aria-pressed="true"] .cap b{text-shadow:0 0 14px rgba(47,214,255,.8)}
+@media (max-width:480px){.ops{grid-template-columns:1fr}}
+.opts input[type="text"]{width:130px;height:auto;background:var(--well);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font:inherit;color:inherit}
+@media (max-width:480px){.ops{grid-template-columns:1fr}}
+.soon{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:10px;color:var(--muted);font-size:13px}
+.soon i{font-style:normal}
+.opts{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center}
+.opts label{display:flex;gap:8px;align-items:center}
+.opts input{width:18px;height:18px;accent-color:var(--brand)}
+.opts select{background:var(--well);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+.ghost{background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:7px 14px}
+.ghost:hover{border-color:var(--brand)}
+.voice-note{font-size:13px;color:var(--muted);margin:8px 0 0;max-width:65ch}
+.go{--ch:10px;background:linear-gradient(180deg,#56e2ff,#1f9bff);color:#031326;border:0;padding:14px 34px;font-weight:900;font-size:20px;align-self:flex-start;
+  clip-path:polygon(var(--ch) 0,100% 0,100% calc(100% - var(--ch)),calc(100% - var(--ch)) 100%,0 100%,0 var(--ch));filter:drop-shadow(0 0 14px rgba(47,214,255,.45))}
+.go:hover{filter:drop-shadow(0 0 20px rgba(47,214,255,.75)) brightness(1.06)}
+.howto{padding:16px 20px}
+.howto h2{font-size:16px;font-weight:700;margin:0 0 6px}
+.howto ol{margin:0;padding-inline-start:20px;color:var(--muted)}
+.howto li{margin:4px 0}
+.fine{font-size:13px;color:var(--muted);margin:0;max-width:65ch}
+
+/* ---------- game HUD ---------- */
+#game{height:100%;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:16px;padding:6px 18px;background:linear-gradient(180deg,#0d1d3f,#07122a);border-bottom:1px solid #26467e;box-shadow:0 2px 18px rgba(47,125,255,.25);flex-wrap:wrap}
+.top img{width:52px;height:auto;flex:none;filter:drop-shadow(0 0 8px rgba(47,125,255,.6))}
+.top .where{font-weight:900;font-size:22px}
+.top .where small{display:block;color:var(--muted);font-size:12.5px;font-weight:400;margin-top:-3px}
+.stat{display:flex;flex-direction:column;align-items:center;line-height:1.1;margin-inline-start:auto;min-width:70px}
+.stat + .stat{margin-inline-start:6px}
+.stat span{font-size:11.5px;color:var(--muted)}
+.stat b{font-size:24px;font-weight:900;font-variant-numeric:tabular-nums;color:#fff;text-shadow:0 0 12px rgba(47,214,255,.55)}
+.top .tbtn{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:6px;padding:7px 14px;font-size:14px;margin-inline-start:6px}
+.top .tbtn:hover{border-color:var(--brand)}
+#btnEnd{border-color:rgba(255,59,71,.5);color:#ffb3b8}
+.shiftbar{height:3px;background:#0a1630}
+.shiftbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--brand));box-shadow:0 0 10px var(--brand)}
+.grid{flex:1;min-height:0;display:grid;grid-template-columns:minmax(330px,410px) minmax(0,1fr) minmax(270px,330px);gap:12px;padding:12px 16px 16px}
+.col{display:flex;flex-direction:column;gap:12px;min-height:0;min-width:0}
+.panel{display:flex;flex-direction:column;min-height:0;position:relative;isolation:isolate;background:var(--metal);
+  clip-path:polygon(var(--ch) 0,calc(100% - var(--ch)) 0,100% var(--ch),100% calc(100% - var(--ch)),calc(100% - var(--ch)) 100%,var(--ch) 100%,0 calc(100% - var(--ch)),0 var(--ch))}
+.panel::before{content:"";position:absolute;inset:1.5px;z-index:-1;background:linear-gradient(180deg,#0c1b3a,#08122a);
+  clip-path:polygon(var(--ch) 0,calc(100% - var(--ch)) 0,100% var(--ch),100% calc(100% - var(--ch)),calc(100% - var(--ch)) 100%,var(--ch) 100%,0 calc(100% - var(--ch)),0 var(--ch))}
+.panel > h2{font-size:15px;font-weight:700;margin:0;padding:11px 16px 8px;display:flex;justify-content:space-between;align-items:center;gap:8px;position:relative}
+.panel > h2::after{content:"";position:absolute;inset-inline:16px;bottom:0;height:1px;background:linear-gradient(90deg,var(--brand),rgba(47,214,255,.05))}
+[dir="rtl"] .panel > h2::after{background:linear-gradient(270deg,var(--brand),rgba(47,214,255,.05))}
+.panel > h2 > span:last-child{font-size:12.5px;font-weight:400;color:var(--muted)}
+.panel .body{padding:10px 14px 14px;overflow:auto;min-height:0;scrollbar-width:thin;scrollbar-color:#27467c transparent}
+
+/* incoming lines */
+.qrow{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;background:var(--well);border:1px solid var(--line);margin-bottom:6px}
+.qrow .led{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);flex:none;animation:pulse 1s ease-in-out infinite}
+.qrow.hot{border-color:rgba(255,59,71,.6)}
+.qrow.hot .led{background:var(--crit);box-shadow:0 0 12px var(--crit);animation-duration:.5s}
+@keyframes pulse{50%{opacity:.25}}
+.qrow .qi{flex:1;min-width:0;font-size:14px}
+.qrow .qi b{font-weight:700}
+.qrow .qi span{color:var(--muted);margin-inline-start:8px;font-variant-numeric:tabular-nums}
+.qbar{height:3px;background:var(--line);border-radius:2px;margin-top:5px;overflow:hidden}
+.qbar i{display:block;height:100%;background:var(--accent)}
+.qrow.hot .qbar i{background:var(--crit)}
+.qrow button{background:linear-gradient(180deg,#4fe6b0,#1fae7c);color:#03160f;border:0;border-radius:6px;padding:6px 18px;font-weight:700}
+.qrow button:disabled{background:var(--panel-2);color:var(--muted);cursor:default}
+.empty{color:var(--muted);font-size:13.5px;margin:4px 2px}
+
+/* call */
+#callPanel{flex:1}
+#call{display:flex;flex-direction:column;overflow:hidden;padding:0}
+.call-scroll{flex:1;min-height:0;overflow:auto;padding:10px 14px;scrollbar-width:thin;scrollbar-color:#27467c transparent}
+.call-foot{flex:none;padding:10px 14px 14px;background:linear-gradient(180deg,rgba(16,34,74,.0),rgba(16,34,74,.75));border-top:1px solid var(--line)}
+.callmeta{display:flex;gap:14px;align-items:center;font-size:12.5px;color:var(--muted);margin-bottom:8px;font-variant-numeric:tabular-nums}
+.rec{display:inline-flex;align-items:center;gap:6px;color:#ff8a92;font-weight:500}
+.rec::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--crit);box-shadow:0 0 8px var(--crit);animation:pulse 1s ease-in-out infinite}
+.loc{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:var(--well);border:1px solid var(--line);margin-bottom:8px}
+.loc span{font-size:11.5px;font-weight:700;border-radius:4px;padding:1px 8px;white-space:nowrap}
+.loc.warn span{background:rgba(255,181,61,.16);color:var(--accent)}
+.loc.ok span{background:rgba(53,211,154,.16);color:var(--ok)}
+.loc.ok{border-color:rgba(53,211,154,.45)}
+.loc b{font-weight:500;font-size:15px;min-width:0}
+/* the conversation, as a screen */
+.transcript{height:150px;overflow:auto;padding:10px 12px;border-radius:8px;background:
+    repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 3px),
+    #030c1c;
+  border:1px solid #1b4a8e;box-shadow:inset 0 0 26px rgba(47,125,255,.16);scrollbar-width:thin;scrollbar-color:#27467c transparent}
+.ln{display:flex;gap:8px;align-items:baseline;margin-bottom:5px;font-size:14.5px}
+.ln b{flex:none;font-weight:700;font-size:12.5px;width:48px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ln .tx{flex:1;min-width:0}
+.ln time{flex:none;color:#4f6585;font-size:11px;font-variant-numeric:tabular-nums}
+.ln.caller b{color:var(--accent)}
+.ln.op b{color:var(--brand)}
+.ln.op .tx{color:#a9c6ea}
+.ln.fx .tx{color:var(--muted);font-style:italic}
+.cursor{display:inline-block;width:8px;height:15px;background:var(--brand);box-shadow:0 0 8px var(--brand);vertical-align:-2px;animation:pulse 1s steps(2) infinite}
+.tabs{display:flex;gap:6px;margin:10px 0 6px}
+.tabs button{flex:1;background:transparent;border:0;border-bottom:2px solid var(--line);padding:6px 4px;font-weight:700;font-size:14px;color:var(--muted)}
+.tabs button i{font-style:normal;font-weight:400;font-size:12px;margin-inline-start:4px;background:var(--panel-2);border-radius:999px;padding:0 7px}
+.tabs button[aria-pressed="true"]{color:#fff;border-bottom-color:var(--brand);box-shadow:0 8px 12px -10px var(--brand)}
+.tabs button.i[aria-pressed="true"]{border-bottom-color:var(--ok);box-shadow:0 8px 12px -10px var(--ok)}
+.qs{display:flex;flex-direction:column;gap:5px}
+.qs button{display:flex;gap:10px;align-items:baseline;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14.5px;text-align:right;transition:background .12s,border-color .12s}
+.qs button:hover{border-color:var(--brand);background:rgba(47,214,255,.08)}
+.qs button.new{border-color:var(--brand);box-shadow:0 0 12px rgba(47,214,255,.3)}
+.qs.ins button:hover{border-color:var(--ok);background:rgba(53,211,154,.08)}
+.qs kbd{font-family:inherit;font-size:11.5px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 6px;background:var(--well);font-variant-numeric:tabular-nums}
+.exts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+.exts button{display:flex;flex-direction:column;align-items:center;gap:0;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:8px;padding:5px 4px;font-size:12.5px;color:var(--muted)}
+.exts button b{font-size:16px;font-weight:900;color:var(--text);font-variant-numeric:tabular-nums}
+.exts button[aria-pressed="true"]{border-color:var(--ok);background:rgba(53,211,154,.14);color:var(--ok);box-shadow:0 0 12px rgba(53,211,154,.25)}
+.exts button[aria-pressed="true"] b{color:var(--ok)}
+.dec{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dec button{--ch:8px;border:0;padding:11px 8px;font-weight:900;font-size:16px;color:#fff;clip-path:polygon(var(--ch) 0,100% 0,100% calc(100% - var(--ch)),calc(100% - var(--ch)) 100%,0 100%,0 var(--ch))}
+.dec .u{background:linear-gradient(180deg,#ff5c66,#d81f2c)}
+.dec .r{background:linear-gradient(180deg,#4d95ff,#1c5fe0)}
+.dec button:hover{filter:brightness(1.12)}
+.dec button:active{transform:translateY(1px)}
+.sub{font-size:12px;color:var(--muted);margin:8px 0 5px}
+.xfer{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:6px}
+.xfer button{background:transparent;border:1px solid var(--line);border-radius:8px;padding:6px 4px;font-size:13px;color:var(--muted)}
+.xfer button b{color:var(--text);font-weight:700;margin-inline-end:4px}
+.xfer button:hover{border-color:var(--accent)}
+.endcall{width:100%;margin-top:8px;background:transparent;border:1px solid var(--ok);border-radius:8px;color:var(--ok);padding:9px;font-weight:700;font-size:15px}
+.endcall:hover{background:rgba(53,211,154,.12)}
+.endcall:disabled{opacity:.5;cursor:default}
+.hint{color:var(--accent);font-size:13px;min-height:19px;margin:6px 0 0}
+.idle{height:100%;min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted);padding:14px;text-align:center}
+.idle{position:relative;overflow:hidden}
+.idle > *{position:relative}
+.idle .idlevid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.28}
+.idle b{color:var(--text);font-weight:700;font-size:17px}
+.wave{display:flex;gap:4px;align-items:center;height:34px}
+.wave i{width:4px;border-radius:2px;background:var(--brand);box-shadow:0 0 8px var(--brand);animation:wave 1.1s ease-in-out infinite}
+.wave i:nth-child(1){height:20%}.wave i:nth-child(2){height:55%;animation-delay:.1s}.wave i:nth-child(3){height:100%;animation-delay:.2s}.wave i:nth-child(4){height:45%;animation-delay:.3s}.wave i:nth-child(5){height:75%;animation-delay:.4s}.wave i:nth-child(6){height:30%;animation-delay:.5s}.wave i:nth-child(7){height:60%;animation-delay:.6s}
+@keyframes wave{50%{transform:scaleY(.35)}}
+
+/* map */
+.mapwrap{flex:1;position:relative;min-height:280px;margin:4px 10px 10px;border-radius:8px;overflow:hidden;border:1px solid #1b4a8e;box-shadow:inset 0 0 40px rgba(0,0,0,.6)}
+.mapwrap canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.legend{display:flex;gap:14px}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-inline-end:5px}
+
+/* open incidents */
+#incPanel .body{max-height:132px}
+.irow{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid var(--line);margin-bottom:6px}
+.irow.want{border-color:rgba(255,59,71,.7);box-shadow:0 0 12px rgba(255,59,71,.25)}
+.irow .ii{flex:1;min-width:0}
+.irow .ii b{display:block;font-size:14.5px}
+.irow .ii span{font-size:12.5px;color:var(--muted)}
+.irow .ii em{font-style:normal;color:#ff7d86;font-weight:700}
+.irow .ib{display:flex;gap:5px;flex:none}
+.irow .ib button{background:transparent;border:1px solid var(--line);border-radius:6px;padding:4px 9px;font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
+.irow .ib button:hover{border-color:var(--brand)}
+.irow .ib button[aria-pressed="true"]{border-color:var(--ok);color:var(--ok);background:rgba(53,211,154,.14)}
+.irow .ib .rf{border-color:var(--blue);color:#9cc4ff}
+
+/* forces */
+.unit{display:grid;grid-template-columns:34px auto 1fr auto;align-items:center;gap:10px;width:100%;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:8px;padding:7px 10px;margin-bottom:6px;text-align:right;transition:border-color .12s,background .12s}
+.unit svg{width:34px;height:18px;display:block}
+.unit .cs{font-weight:900;font-size:18px;font-variant-numeric:tabular-nums}
+.unit .ty{font-size:12.5px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.unit .stx{font-size:12px;font-weight:700;border-radius:5px;padding:2px 9px;white-space:nowrap}
+.unit.free .stx{background:rgba(53,211,154,.15);color:var(--ok)}
+.unit.enroute .stx{background:rgba(255,181,61,.15);color:var(--accent)}
+.unit.scene .stx{background:rgba(255,59,71,.16);color:#ff7d86}
+.unit:not(:disabled):hover{border-color:var(--blue);background:rgba(47,125,255,.08)}
+.unit[aria-pressed="true"]{border-color:var(--brand);background:rgba(47,214,255,.12);box-shadow:0 0 14px rgba(47,214,255,.3)}
+.unit:disabled{cursor:default}
+
+/* radio */
+#logPanel{flex:1}
+.log{display:flex;flex-direction:column;font-size:13.5px}
+.lg{padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.lg time{color:#587092;font-size:11px;font-variant-numeric:tabular-nums;margin-inline-end:6px}
+.lg b{font-weight:700;margin-inline-end:6px;color:#7fb4ff}
+.lg.ops b{color:var(--accent)}
+.lg.good b{color:var(--ok)}
+.lg.bad b{color:#ff7d86}
+.lg.good,.lg.bad{padding-inline-start:8px;border-inline-start:3px solid var(--ok)}
+.lg.bad{border-inline-start-color:var(--crit)}
+.lg .sc{float:left;font-weight:900;font-variant-numeric:tabular-nums}
+
+/* cinematics */
+#cine{position:fixed;inset:0;background:#000;z-index:20}
+#cine canvas,#cine video{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover}
+.cine-bar{position:absolute;inset-inline:0;background:#000;display:flex;align-items:center;padding:0 5vw;gap:20px}
+.cine-bar.top{top:0;height:11vh;min-height:54px}
+.cine-bar.bot{bottom:0;height:17vh;min-height:92px;justify-content:space-between}
+#cineK{font-weight:900;font-size:clamp(15px,2.2vh,22px);letter-spacing:.14em;color:var(--crit);text-shadow:0 0 16px rgba(255,59,71,.8);animation:pulse 1.2s ease-in-out infinite}
+#cine.intro #cineK{color:var(--brand);text-shadow:0 0 16px rgba(47,214,255,.7);animation:none}
+.cine-bar.bot b{display:block;font-weight:900;font-size:clamp(24px,4.6vh,46px);line-height:1.1}
+.cine-bar.bot span{color:var(--muted);font-size:clamp(13px,2vh,18px)}
+.cine-bar.bot em{font-style:normal;font-weight:700;color:var(--accent);font-size:clamp(13px,2vh,18px);text-align:left}
+#cineSkip{position:absolute;top:2.5vh;inset-inline-end:5vw;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25);border-radius:6px;padding:6px 16px;font-size:14px}
+#cineSkip:hover{background:rgba(255,255,255,.18)}
+
+/* end report */
+#end{position:fixed;inset:0;background:rgba(2,5,12,.9);display:flex;align-items:center;justify-content:center;padding:16px}
+.card{--ch:16px;max-width:660px;width:100%;max-height:100%;display:flex;flex-direction:column;position:relative;isolation:isolate;background:var(--metal);
+  clip-path:polygon(var(--ch) 0,calc(100% - var(--ch)) 0,100% var(--ch),100% calc(100% - var(--ch)),calc(100% - var(--ch)) 100%,var(--ch) 100%,0 calc(100% - var(--ch)),0 var(--ch))}
+.card::before{content:"";position:absolute;inset:2px;z-index:-1;background:linear-gradient(180deg,#0d1e42,#07112a);
+  clip-path:polygon(var(--ch) 0,calc(100% - var(--ch)) 0,100% var(--ch),100% calc(100% - var(--ch)),calc(100% - var(--ch)) 100%,var(--ch) 100%,0 calc(100% - var(--ch)),0 var(--ch))}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:18px 22px 0}
+.card h2{font-weight:900;font-size:24px;margin:0}
+.card .x{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:6px;width:36px;height:36px;font-size:16px;flex:none}
+.card .x:hover{background:var(--crit);border-color:var(--crit)}
+.card-in{padding:6px 22px 0;display:flex;flex-direction:column;min-height:0}
+.scoreline{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.card .big{font-size:68px;font-weight:900;line-height:1;color:#fff;text-shadow:0 0 26px rgba(47,214,255,.7);font-variant-numeric:tabular-nums}
+.card .big small{font-size:16px;color:var(--muted);font-weight:400;text-shadow:none}
+.grade{font-weight:900;font-size:20px;color:#031326;background:linear-gradient(180deg,#56e2ff,#1f9bff);padding:3px 16px;border-radius:6px}
+.card .rank{color:var(--muted);margin:6px 0 14px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.actions .go{font-size:17px;padding:10px 26px;align-self:auto}
+.actions .ghost{padding:10px 18px}
+.tblwrap{overflow:auto;min-height:0;border-top:1px solid var(--line);margin:0 -22px;padding:0 22px 16px;scrollbar-width:thin;scrollbar-color:#27467c transparent}
+.card table{width:100%;border-collapse:collapse;font-size:14px}
+.card td{padding:8px 4px;border-bottom:1px solid rgba(255,255,255,.07);vertical-align:top}
+.card td:last-child{text-align:left;font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap}
+.card td small{display:block;color:var(--muted)}
+
+@media (max-width:900px){
+  html,body{height:auto}
+  #game{height:auto}
+  .grid{grid-template-columns:1fr}
+  .mapwrap{flex:none;height:66vw;min-height:260px}
+  #logPanel .body{max-height:280px}
+  .stat{min-width:54px} .stat b{font-size:19px}
+  .top .where{font-size:18px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
+</style>
+</head>
+<body>
+
+<!-- ================= START ================= -->
+<main id="start">
+  <div class="hero" role="img" aria-label="מוקד 100, סימולטור מוקד משטרה"></div>
+  <div class="start-in">
+    <h1 class="vh">מוקד 100</h1>
+    <p class="tagline">משמרת אחת, עיר אחת, והכוחות שבחרת.</p>
+
+    <section>
+      <p class="step-label">1. בחירת מחוז</p>
+      <div class="districts" id="districts"></div>
+    </section>
+
+    <section>
+      <p class="step-label">2. בחירת עיר</p>
+      <div class="cities" id="cities"></div>
+      <div class="soon" id="soon"></div>
+    </section>
+
+    <section>
+      <p class="step-label">3. מי יושב במוקד</p>
+      <div class="ops" id="ops">
+        <button type="button" data-op="m" aria-pressed="true"><span class="av" style="background-image:url(op-m.jpg)"></span><span class="cap"><b>מוקדן</b><span>״משטרה שלום, מדבר...״</span></span></button>
+        <button type="button" data-op="f" aria-pressed="false"><span class="av" style="background-image:url(op-f.jpg)"></span><span class="cap"><b>מוקדנית</b><span>״משטרה שלום, מדברת...״</span></span></button>
+      </div>
+      <div class="opts" style="margin-top:10px">
+        <label for="opName">שם במוקד <input type="text" id="opName" maxlength="12" placeholder="אורי" autocomplete="off"></label>
+        <span class="voice-note" style="margin:0">אפשר להשאיר ריק ויוגרל שם.</span>
+      </div>
+    </section>
+
+    <section>
+      <p class="step-label">4. בחירת משמרת</p>
+      <div class="districts" id="shifts"></div>
+    </section>
+
+    <section>
+      <p class="step-label">5. הגדרות</p>
+      <div class="opts">
+        <label for="optUnits">כוחות במשמרת
+          <select id="optUnits">
+            <option value="3">3 צוותים</option><option value="4">4 צוותים</option><option value="5" selected>5 צוותים</option><option value="6">6 צוותים</option><option value="7">7 צוותים</option>
+          </select>
+        </label>
+        <label for="optSound"><input type="checkbox" id="optSound" checked> צלילי מוקד וקשר</label>
+        <label for="optVoice"><input type="checkbox" id="optVoice" checked> דיבור בעברית</label>
+        <label for="optCine"><input type="checkbox" id="optCine" checked> קטעי מעבר</label>
+        <button type="button" class="ghost" id="btnVoiceTest">השמעת דוגמה</button>
+      </div>
+      <p class="voice-note" id="voiceNote"></p>
+    </section>
+
+    <button class="go" id="btnStart">כניסה למשמרת</button>
+
+    <div class="howto frame">
+      <h2>איך משחקים</h2>
+      <ol>
+        <li>עונים לקריאה. השאלות משתנות לפי מה שהמתקשר אומר, ותשובה יכולה לפתוח שאלת המשך.</li>
+        <li>מסמנים כוחות ברשימה, ואם צריך גם מד״א, כיבוי או עירייה, ואז בוחרים נסיעה דחופה או רגילה.</li>
+        <li>בלוח ״אירועים פתוחים״ מוסיפים אמבולנס, כיבוי או עירייה לאירוע בכל רגע, גם בלי כוח נוסף וגם אחרי שהשיחה נסגרה. לתגבור מסמנים כוח פנוי ולוחצים ״תגבור״.</li>
+        <li>אחרי השיגור הקו נשאר פתוח: אפשר להמשיך לשאול, לשלוח תגבור, ולסיים את השיחה כשמתאים. באירוע חריג שולחים שניים או שלושה כוחות.</li>
+        <li>קריאה שלא דורשת ניידת מעבירים לגורם המתאים, למוקד 110, או מנתקים אם זו שיחת סרק.</li>
+        <li>באירוע חריג, כמו תאונה קשה, פיצוץ או ירי, מוצג קטע מעבר קצר ברגע השיגור. השעון עוצר בזמן הקטע, ואפשר לדלג עליו.</li>
+        <li>הציון נקבע לפי סיווג, מספר הכוחות, הגורמים שהוזעקו, זמן ההגעה והמידע שנאסף.</li>
+      </ol>
+    </div>
+
+    <p class="fine">משחק עצמאי שאינו מוצר רשמי של משטרת ישראל. כל האירועים והדמויות בדויים. שמות הערים, השכונות והרחובות אמיתיים, ומספרי הבתים אינם קיימים בכוונה. במצב חירום אמיתי מתקשרים 100.</p>
+  </div>
+</main>
+
+<!-- ================= GAME ================= -->
+<div id="game" class="hidden">
+  <header class="top">
+    <img src="logo.png" alt="">
+    <div class="where"><span id="hCity"></span><small id="hDist"></small></div>
+    <div class="stat"><span>שעה</span><b id="hClock">--:--</b></div>
+    <div class="stat"><span>אירועים שטופלו</span><b id="hCount">0</b></div>
+    <div class="stat"><span>ציון משמרת</span><b id="hScore">–</b></div>
+    <button class="tbtn" id="btnMute" aria-pressed="false">השתק</button>
+    <button class="tbtn" id="btnEnd">סיום משמרת</button>
+  </header>
+  <div class="shiftbar"><i id="shiftFill"></i></div>
+
+  <div class="grid">
+    <div class="col">
+      <section class="panel">
+        <h2><span>קווים נכנסים</span><span id="qCount" class="num"></span></h2>
+        <div class="body" id="queue"></div>
+      </section>
+      <section class="panel" id="callPanel">
+        <h2><span>שיחת חירום</span><span id="callLine"></span></h2>
+        <div class="body" id="call"></div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="panel" style="flex:1">
+        <h2><span id="mapTitle">מפת גזרה</span>
+          <span class="legend"><span><i style="background:var(--ok)"></i>זמין</span><span><i style="background:var(--accent)"></i>בדרך</span><span><i style="background:var(--crit)"></i>אירוע</span></span>
+        </h2>
+        <div class="mapwrap"><canvas id="map" aria-label="מפת העיר עם מיקום הכוחות והאירועים"></canvas></div>
+      </section>
+      <section class="panel" id="incPanel">
+        <h2><span>אירועים פתוחים</span><span id="incCount"></span></h2>
+        <div class="body" id="incs"></div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="panel">
+        <h2><span>כוחות בגזרה</span><span id="selCount"></span></h2>
+        <div class="body" id="units"></div>
+      </section>
+      <section class="panel" id="logPanel">
+        <h2><span>רשת הקשר</span><span id="netName"></span></h2>
+        <div class="body"><div class="log" id="log"></div></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div id="cine" class="hidden">
+  <canvas id="cineCv"></canvas><video id="cineVid" class="hidden" muted playsinline></video>
+  <div class="cine-bar top"><span id="cineK"></span></div>
+  <div class="cine-bar bot"><div><b id="cineT"></b><span id="cineS"></span></div><em id="cineF"></em></div>
+  <button type="button" id="cineSkip">דלג ›</button>
+</div>
+
+<div id="end" class="hidden"><div class="card" id="endCard"></div></div>
+
+<script>
+"use strict";
+/* ================= DATA ================= */
+// ctl = how the control room is called on the radio. radio = how the station's units are called.
+// node: [name, x, y, [streets], isStation]
+const DISTRICTS = [
+ {id:'merkaz', name:'מחוז מרכז', ctl:'מרכז', sub:'השרון והשפלה', soon:['כפר סבא','רעננה','רחובות','לוד','רמלה','ראש העין'],
+  cities:[
+   {name:'נתניה', radio:'נתניה', sub:'מרחב שרון', sea:'w', streets:['הרצל','ויצמן','בן גוריון','ז׳בוטינסקי'], nodes:[
+     ['קריית צאנז',26,10,['דברי חיים']],
+     ['צפון העיר',34,26,['שדרות ניצה','דוד המלך']],
+     ['מרכז העיר',30,44,['הרצל','סמילנסקי','ויצמן','שמואל הנציב'],1],
+     ['אזור התעשייה הישן',56,48,['המלאכה','פנקס']],
+     ['קריית השרון',80,40,['טום לנטוס']],
+     ['דורה',58,66,['שדרות בן צבי']],
+     ['עיר ימים',26,86,['אהוד מנור','עוזי חיטמן']],
+     ['פולג',48,92,['גיבורי ישראל','המחשב']]]},
+   {name:'פתח תקווה', radio:'פ״ת', sub:'מרחב שרון', sea:'', streets:['ז׳בוטינסקי','בן גוריון','ויצמן','סוקולוב','העצמאות'], nodes:[
+     ['מרכז העיר',46,46,['רוטשילד','חיים עוזר','חובבי ציון','ההגנה'],1],
+     ['קריית אריה',14,50,['אפעל','השחם','לשם']],
+     ['אם המושבות',24,28,['דרך אם המושבות']],
+     ['סגולה',62,14,[]],
+     ['הדר גנים',78,34,[]],
+     ['שעריה',80,58,['ז׳בוטינסקי']],
+     ['כפר גנים',62,80,['הנשיאים']],
+     ['עין גנים',36,74,[]]]},
+   {name:'ראשון לציון', radio:'ראשון', sub:'מרחב שפלה', sea:'w', streets:['הרצל','ז׳בוטינסקי','ויצמן','בן גוריון'], nodes:[
+     ['מרכז העיר',66,34,['הרצל','רוטשילד','ז׳בוטינסקי'],1],
+     ['נחלת יהודה',70,12,['דרך המכבים']],
+     ['אזור התעשייה הישן',52,20,['הכשרת היישוב']],
+     ['רמת אליהו',34,24,[]],
+     ['אזור התעשייה החדש',40,46,['סחרוב','משה לוי','לישנסקי']],
+     ['מערב העיר',22,60,['שדרות נים']],
+     ['נאות אשלים',46,76,[]],
+     ['שיכון המזרח',86,50,[]]]}
+  ]},
+ {id:'ta', name:'מחוז תל אביב', ctl:'תל אביב', sub:'גוש דן', soon:['בני ברק','גבעתיים','בת ים','הרצליה','רמת השרון'],
+  cities:[
+   {name:'תל אביב-יפו', radio:'ירקון', sub:'מרחב ירקון ומרחב יפתח', sea:'w', streets:['אבן גבירול','דיזנגוף','אלנבי','דרך בגין'], nodes:[
+     ['רמת אביב',40,8,['איינשטיין','ברודצקי','חיים לבנון']],
+     ['רמת החייל',80,12,['הברזל','ראול ולנברג']],
+     ['הצפון הישן',30,26,['דיזנגוף','בן יהודה','ארלוזורוב','אבן גבירול']],
+     ['לב העיר',32,46,['אלנבי','שדרות רוטשילד','שינקין','המלך ג׳ורג׳'],1],
+     ['יד אליהו',72,50,['לה גארדיה','יגאל אלון']],
+     ['נווה שאנן',48,62,['לוינסקי','נווה שאנן','הר ציון']],
+     ['פלורנטין',34,66,['פלורנטין','ויטל','הרצל']],
+     ['התקווה',70,70,['האצ״ל','דרך ההגנה']],
+     ['יפו',22,84,['שדרות ירושלים','יפת','יהודה הימית']]]},
+   {name:'רמת גן', radio:'רמת גן', sub:'מרחב דן', sea:'', streets:['ז׳בוטינסקי','ביאליק','הרצל','אבא הלל'], nodes:[
+     ['הבורסה',14,36,['תובל','אבא הלל']],
+     ['מרכז העיר',36,50,['ביאליק','הרצל','ז׳בוטינסקי'],1],
+     ['נחלת גנים',24,68,['הירדן','חיבת ציון']],
+     ['רמת עמידר',60,40,['עוזיאל']],
+     ['מרום נווה',80,28,['הרא״ה']],
+     ['רמת חן',70,62,['אלוף שדה']],
+     ['תל השומר',88,82,[]]]},
+   {name:'חולון', radio:'חולון', sub:'מרחב יפתח', sea:'', streets:['סוקולוב','ויצמן','חנקין','אילת'], nodes:[
+     ['תל גיבורים',22,16,[]],
+     ['קריית עבודה',56,18,['ההסתדרות']],
+     ['מרכז העיר',40,36,['סוקולוב','ויצמן','שנקר'],1],
+     ['ג׳סי כהן',16,48,['אהרונוביץ']],
+     ['אזור התעשייה',82,40,['הלוחמים','המרכבה','הפלד']],
+     ['נאות רחל',44,56,['חנקין']],
+     ['קריית שרת',60,72,['שדרות ירושלים']],
+     ['קריית בן גוריון',70,90,[]]]}
+  ]},
+ {id:'hof', name:'מחוז חוף', ctl:'חוף', sub:'חיפה, הקריות ומנשה', soon:['זכרון יעקב','אום אל-פחם','טירת כרמל','נשר','אור עקיבא'],
+  cities:[
+   {name:'חיפה', radio:'חיפה', sub:'מרחב חיפה', sea:'nw', streets:['הרצל','העצמאות','מוריה','חורב'], nodes:[
+     ['בת גלים',26,18,['שדרות בת גלים','העלייה השנייה']],
+     ['קריית אליעזר',36,30,['שדרות רוטשילד','צה״ל']],
+     ['המושבה הגרמנית',48,26,['שדרות בן גוריון','אלנבי']],
+     ['העיר התחתית',62,24,['העצמאות','יפו','נתנזון'],1],
+     ['הדר',56,42,['הרצל','החלוץ','הנביאים','בלפור']],
+     ['מרכז הכרמל',40,58,['שדרות הנשיא','מוריה']],
+     ['אחוזה',44,80,['חורב','אבא חושי']],
+     ['נווה שאנן',74,58,['טרומפלדור','התיכון','חניתה']],
+     ['צ׳ק פוסט',88,36,['שדרות ההסתדרות']]]},
+   {name:'חדרה', radio:'חדרה', sub:'מרחב מנשה', sea:'w', streets:['הרברט סמואל','הנשיא ויצמן','הגיבורים','ז׳בוטינסקי'], nodes:[
+     ['עין הים',24,22,[]],
+     ['גבעת אולגה',20,48,['הרב ניסים']],
+     ['אזור התעשייה',54,18,[]],
+     ['מרכז העיר',56,44,['הרברט סמואל','הנשיא ויצמן','הגיבורים','רוטשילד'],1],
+     ['נווה חיים',78,36,[]],
+     ['בית אליעזר',74,68,[]],
+     ['ברנדיס',46,78,[]]]},
+   {name:'הקריות', radio:'זבולון', sub:'מרחב חיפה, תחנת זבולון', sea:'w', streets:['שדרות ירושלים','דרך עכו','הרצל','ויצמן'], nodes:[
+     ['קריית ים',22,34,['שדרות ירושלים','משה שרת']],
+     ['קריית מוצקין',44,40,['שדרות בן גוריון','החשמונאים','שדרות גושן']],
+     ['צור שלום',66,22,[]],
+     ['קריית ביאליק',62,50,['קרן היסוד','שדרות ירושלים'],1],
+     ['קריית שמואל',36,62,[]],
+     ['קריון',54,70,['דרך עכו']],
+     ['קריית אתא',84,78,['העצמאות','זבולון']]]}
+  ]}
+];
+
+// All units a station can field, in the order they join a shift. w = how much the unit counts toward the forces an incident needs.
+const UNIT_DEFS = [
+ {cs:'401', type:'ראש משמרת סיור', speed:4.6, w:1, ord:0},
+ {cs:'402', type:'סגן ראש משמרת', speed:4.6, w:1, ord:1},
+ {cs:'411', type:'אופנוען', speed:6.2, w:1, ord:4},
+ {cs:'403', type:'סיור', speed:4.6, w:1, ord:2},
+ {cs:'404', type:'סיור', speed:4.6, w:1, ord:3},
+ {cs:'412', type:'אופנוען', speed:6.2, w:1, ord:5},
+ {cs:'יס״מ', type:'צוות יס״מ, נחשב כשני כוחות', speed:4.6, w:2, ord:6}
+];
+const EXT = {'101':{n:'מד״א', crew:'אמבולנס'}, '102':{n:'כיבוי והצלה', crew:'צוות כיבוי'}, '106':{n:'מוקד עירוני', crew:'צוות עירייה'}};
+
+// pri: 1 urgent, 2 regular, 3 no unit (tgt = where it belongs). g = caller's gender. ext = outside crews the incident needs, opt = crews that are fine but not required.
+// qs: {q, a, k: counts toward the info score, after: index of the question whose answer unlocks this one}
+const SCEN = [
+ {t:'התפרצות לדירה בזמן אמת', rad:'התפרצות בזמן אמת', g:'f', pri:1, need:2, dur:20,
+  o:['שלום, אני חושבת שפרצו לשכנים שלי.','הם בחו״ל כבר שבוע ואני שומעת עכשיו רעשים מהדירה שלהם.'],
+  qs:[{q:'את שומעת אותם עכשיו?', a:'כן. מזיזים שם רהיטים, ועכשיו נפל משהו מזכוכית.'},
+      {q:'ראית מי נכנס לדירה?', a:'ראיתי מהעינית שני בחורים עם קפוצ׳ונים כהים עולים במדרגות לפני רבע שעה.', k:1},
+      {q:'יש רכב שמחכה להם למטה?', a:'כן! רכב לבן עומד מול הכניסה עם מנוע דולק, ומישהו יושב בפנים.', k:1, after:1},
+      {q:'את במקום בטוח?', a:'כן, אני בבית שלי. נעלתי את הדלת.'}],
+  good:'שני חשודים נעצרו ביציאה מהבניין, הרכוש הוחזר לדירה', bad:'החשודים נמלטו דרך החצר האחורית. כוח אחד לא הספיק לסגור את הבניין'},
+ {t:'תאונת דרכים עם נפגעים', rad:'תאונת דרכים עם נפגעים', g:'m', pri:1, need:2, ext:['101'], dur:24,
+  o:['הייתה פה תאונה עכשיו, רכב נכנס באופנוע!','אני ב{st}, תבואו מהר!'],
+  qs:[{q:'יש נפגעים?', a:'כן, רוכב האופנוע שוכב על הכביש. הוא בהכרה אבל לא זז.', k:1},
+      {q:'מישהו כבר הזמין אמבולנס?', a:'לא נראה לי. כולם פה רק מצלמים.', k:1, after:0},
+      {q:'הרכבים חוסמים את הכביש?', a:'כן, שניהם באמצע הצומת. כל התנועה עומדת.'},
+      {q:'הנהג הפוגע נשאר במקום?', a:'כן, הוא יצא מהרכב. הוא בהלם.'}],
+  good:'הזירה נסגרה, התנועה הוסטה והוזמן בוחן תנועה. הרוכב פונה במצב בינוני', bad:'כוח בודד בזירה לא יכול גם לכוון תנועה וגם לטפל בזירה. נוצר פקק כבד'},
+ {t:'תאונת נזק בלבד', g:'m', pri:3, tgt:'110',
+  o:['היי, עשיתי תאונה קטנה. מישהו נכנס בי מאחורה ברמזור.','אני רוצה שתשלחו שוטר שירשום דוח בשביל הביטוח.'],
+  qs:[{q:'מישהו נפגע?', a:'לא, אף אחד. רק הפגוש.', k:1},
+      {q:'הנהג השני נשאר במקום?', a:'כן, הוא פה איתי.'},
+      {q:'הוא מוכן למסור לך פרטים?', a:'כן, כבר צילמתי את הרישיון והביטוח שלו. רק רציתי שיהיה שוטר.', k:1, after:1},
+      {q:'הרכבים חוסמים תנועה?', a:'לא, זזנו לצד.'}],
+  np:'נזק בלבד, שני הנהגים כבר החליפו פרטים. לא נדרשה משטרה', tip:'בתאונת נזק בלבד בלי נפגעים הנהגים מחליפים פרטים. מסבירים בטלפון ולא שולחים ניידת.'},
+ {t:'חפץ חשוד', rad:'חפץ חשוד', g:'f', pri:1, need:2, dur:26,
+  o:['יש פה תיק שחור מתחת לספסל בתחנת האוטובוס.','הוא שם כבר לפחות חצי שעה.'],
+  qs:[{q:'איך נראה התיק?', a:'תיק גב שחור, גדול וסגור.', k:1},
+      {q:'בדקתם אם הוא שייך למישהו בסביבה?', a:'שאלתי את כולם בתחנה. הוא לא של אף אחד.', k:1},
+      {q:'מישהו נגע בו או הזיז אותו?', a:'לא, לא נגעתי. אבל אנשים עומדים ממש לידו.'},
+      {q:'את יכולה להרחיק אנשים עד שנגיע?', a:'אני אנסה. אני אגיד להם לזוז.', after:2}],
+  good:'האזור בודד והתנועה נחסמה. חבלן בדק את החפץ והוא נמצא תמים, תיק ספורט שנשכח', bad:'כוח בודד לא הצליח לבודד את האזור משני הכיוונים. אזרחים המשיכו לעבור ליד החפץ עד שהגיע חבלן'},
+ {t:'קריוקי בחצר', rad:'מטרד רעש, קריוקי בחצר בית', g:'m', pri:2, need:1, dur:14,
+  o:['שלום, יש פה קריוקי בחצר של השכנים כבר שלוש שעות.','שרים במיקרופון עם רמקולים. כל הרחוב ער.'],
+  qs:[{q:'מאיפה בדיוק מגיע הרעש?', a:'מהחצר של הבית הפרטי ממול. יש שם איזה אירוע.', k:1},
+      {q:'פנית אליהם?', a:'צעקתי מהחלון. הם רק הגבירו.'},
+      {q:'כמה אנשים יש שם?', a:'עשרים בערך, עם שתייה.'},
+      {q:'אל תיכנס לחצר שלהם. ניידת תגיע כשתתפנה.', a:'בסדר. רק שיבואו לפני הבוקר.', k:1, ins:1}],
+  good:'בעל הבית הוזהר, ההגברה כובתה והאירוע הסתיים'},
+ {t:'נערים מרעישים בגינה', rad:'מטרד רעש, חבורת נערים בגינה ציבורית', g:'f', pri:2, need:1, dur:15,
+  o:['ערב טוב, יש חבורה של נערים בגינה מתחת לבית.','הם צועקים, מפוצצים נפצים ושמים מוזיקה מרמקול.'],
+  qs:[{q:'כמה נערים יש שם?', a:'עשרה בערך, בני חמש עשרה או שש עשרה.'},
+      {q:'יש שם אלכוהול או ונדליזם?', a:'ראיתי בקבוקים. ואחד מהם בועט בפחים.', k:1},
+      {q:'הם מסכנים מישהו?', a:'הם זורקים נפצים לכיוון הכביש.', k:1, after:1},
+      {q:'אל תרדי להתעמת איתם.', a:'אין לי כוונה. אני רק רוצה לישון.', ins:1}],
+  good:'הנערים פוזרו, פרטיהם נרשמו והוריהם עודכנו'},
+ {t:'מסיבה רועשת בדירה', rad:'מטרד רעש, מסיבה בדירה', g:'f', pri:2, need:1, dur:14,
+  o:['ערב טוב, יש מסיבה בבניין ממול עם מוזיקה בווליום מטורף.','יש לי ילדים קטנים שלא מצליחים להירדם.'],
+  qs:[{q:'מאיזו דירה הרעש?', a:'קומה שלישית בבניין ממול. המרפסת מלאה באנשים.', k:1},
+      {q:'ניסית לפנות אליהם?', a:'ביקשתי יפה פעמיים והם צחקו עליי.'},
+      {q:'כמה זמן זה נמשך?', a:'מתשע בערב, בלי הפסקה.'}],
+  good:'בעל הדירה הוזהר והמוזיקה הופסקה'},
+ {t:'קטטה ברחוב', rad:'קטטה, דיווח על בקבוק שבור', g:'m', pri:1, need:2, ext:['101'], dur:20,
+  o:['יש פה מכות רציניות מחוץ לקיוסק!','תשלחו מישהו מהר!'],
+  qs:[{q:'יש למישהו נשק או חפץ חד?', a:'כן! אחד מהם שבר בקבוק והוא מחזיק אותו ביד.', k:1},
+      {q:'יש פצועים?', a:'אחד מהם על הרצפה עם דם על הפנים.', k:1},
+      {q:'כמה אנשים מעורבים?', a:'חמישה או שישה. וכל הזמן מגיעים עוד.'},
+      {q:'איך נראה זה שמחזיק את הבקבוק?', a:'בן עשרים בערך, חולצה אדומה, שיער קצר.', after:0}],
+  good:'הצדדים הופרדו. חשוד עם בקבוק שבור נעצר, הפצוע פונה לבית החולים', bad:'כוח בודד מול שישה מעורבים, נדרש תגבור. החשוד המרכזי נמלט רגלית'},
+ {t:'דקירה', rad:'דקירה, פצוע בזירה', g:'f', pri:1, need:2, ext:['101'], dur:24,
+  o:['דקרו פה מישהו! הוא שוכב על המדרכה ויש המון דם!'],
+  qs:[{q:'הפצוע בהכרה?', a:'הוא ממלמל משהו. הוא מחזיק את הבטן.', k:1},
+      {q:'הדוקר עדיין במקום?', a:'לא, הוא ברח רגלית לכיוון הגינה.', k:1},
+      {q:'איך נראה הדוקר?', a:'בחור צעיר, קפוצ׳ון אפור, מכנס שחור. ראיתי אותו רק מהגב.', k:1, after:1},
+      {q:'מישהו מטפל בפצוע?', a:'בחור אחד לוחץ לו על הפצע עם חולצה.'}],
+  good:'הזירה נסגרה והפצוע פונה במצב בינוני. חשוד שתואם לתיאור נעצר בגינה סמוכה', bad:'כוח בודד נשאר עם הפצוע ולא יכול לסרוק אחרי החשוד. החשוד לא אותר'},
+ {t:'ירי', rad:'דיווח על ירי', g:'m', pri:1, need:2, ext:['101'], dur:26,
+  o:['שמעתי עכשיו יריות ברחוב! שלוש או ארבע יריות!'],
+  qs:[{q:'אתה רואה את היורה?', a:'לא. ראיתי קטנוע עם שניים עליו בורח מהמקום מיד אחרי.', k:1},
+      {q:'יש נפגעים?', a:'מישהו שוכב ליד רכב חונה. הוא לא זז.', k:1},
+      {q:'לאיזה כיוון ברח הקטנוע?', a:'לכיוון הכביש הראשי. קטנוע שחור, שניהם עם קסדות.', k:1, after:0},
+      {q:'אתה במקום מוגן?', a:'אני בתוך הבית, רואה מהחלון.'}],
+  good:'הזירה נסגרה והפצוע פונה במצב קשה. פרטי הקטנוע הופצו והוצבו מחסומים ביציאות', bad:'כוח בודד בזירת ירי נדרש להמתין לתגבור לפני כניסה. הפינוי התעכב'},
+ {t:'פיצוץ בתחנת אוטובוס', rad:'פיצוץ בתחנת אוטובוס, חשד לפיגוע תופת', g:'m', pri:1, need:3, ext:['101','102'], dur:30,
+  o:['היה פה פיצוץ אדיר בתחנת האוטובוס! יש אנשים על הרצפה!'],
+  qs:[{q:'כמה נפגעים אתה רואה?', a:'לפחות חמישה שוכבים. יש הרבה צעקות.', k:1},
+      {q:'יש אש או עשן?', a:'יש עשן, והתחנה כולה הרוסה.'},
+      {q:'אתה רואה חפץ חשוד נוסף במקום?', a:'יש תיק ליד העמוד שאף אחד לא נוגע בו.', k:1},
+      {q:'אתה יכול להרחיק אנשים מהתיק?', a:'כן, אני מזיז את כולם אחורה.', after:2}],
+  good:'הזירה נסגרה בשני מעגלים והנפגעים פונו. חבלן נטרל חפץ נוסף, והזירה נסרקת', bad:'מעט מדי כוחות לסגירת הזירה. אזרחים נכנסו לאזור לפני סריקת החבלן'},
+ {t:'פיגוע ירי', rad:'ירי לעבר אזרחים, חשד לפיגוע', g:'f', pri:1, need:3, ext:['101'], dur:28,
+  o:['יורים פה על אנשים ברחוב! מישהו יורה עם רובה!'],
+  qs:[{q:'היורה עדיין במקום?', a:'כן! הוא הולך לכיוון הכיכר ויורה!', k:1},
+      {q:'איך הוא נראה?', a:'לבוש שחור, רובה ארוך. הוא לבד, אני חושבת.', k:1, after:0},
+      {q:'יש נפגעים?', a:'ראיתי שניים נופלים.', k:1},
+      {q:'את במקום מוגן?', a:'נכנסתי לחנות. נעלנו את הדלת.'}],
+  good:'הכוחות חתרו למגע והיורה נוטרל. הפצועים פונו והזירה נסרקת', bad:'כוח קטן מדי מול יורה פעיל. הנטרול התעכב עד שהגיע תגבור'},
+ {t:'פיצוץ בלון גז בדירה', rad:'פיצוץ בלון גז בדירה, יש נפגעים', g:'m', pri:1, need:2, ext:['101','102'], dur:26,
+  o:['היה פיצוץ בדירה בבניין ממול! כל החלונות עפו!'],
+  qs:[{q:'יש אש?', a:'כן, יוצאות להבות מהמרפסת בקומה שנייה.', k:1},
+      {q:'יש לכודים או נפגעים?', a:'שומעים צעקות מהדירה. ושכנה יושבת בחוץ עם דם על הראש.', k:1},
+      {q:'אתה יודע מה התפוצץ?', a:'השכנים אומרים שזה בלון גז. יש ריח חזק של גז.'},
+      {q:'מפנים את הבניין?', a:'אנשים יורדים במדרגות, אבל יש קשישים בקומה שלישית.'}],
+  good:'הרחוב נחסם והבניין פונה. לוחמי האש חילצו לכוד והנפגעים פונו. לא עלה חשד לפלילי', bad:'כוח בודד לא הספיק גם לחסום את הרחוב וגם לפנות דיירים. הפינוי התעכב'},
+ {t:'פיצוץ רכב', rad:'פיצוץ רכב, חשד לאירוע פלילי', g:'f', pri:1, need:3, ext:['101','102'], dur:28,
+  o:['רכב התפוצץ פה עכשיו ברחוב! הוא עולה באש!'],
+  qs:[{q:'יש מישהו בתוך הרכב?', a:'אני חושבת שהנהג בפנים. אי אפשר להתקרב.', k:1},
+      {q:'ראית מה קרה לפני הפיצוץ?', a:'הוא רק התניע, ואז בום. אופנוע עבר לידו שנייה לפני.', k:1},
+      {q:'לאן נסע האופנוע?', a:'צפונה, מהר מאוד. רוכב אחד עם קסדה שחורה.', k:1, after:1},
+      {q:'יש עוד נפגעים?', a:'עובר אורח נפצע מרסיסים. הוא יושב על המדרכה.'}],
+  good:'הזירה נסגרה, האש כובתה וחבלן בדק את הרכב. פרטי האופנוע הופצו לכלל היחידות', bad:'מעט מדי כוחות. הזירה לא נסגרה בזמן ועדים עזבו את המקום'},
+ {t:'ירי לעבר בית', rad:'ירי לעבר בית מגורים', g:'m', pri:1, need:2, opt:['101'], dur:22,
+  o:['ירו עכשיו על הבית שלי! יש חורים בדלת ובחלון!'],
+  qs:[{q:'מישהו בבית נפגע?', a:'לא, כולנו שכבנו על הרצפה. אשתי והילדים בהלם.', k:1},
+      {q:'ראית את היורים?', a:'רכב כהה עצר, ירו צרור ונסעו.', k:1},
+      {q:'לאן הם נסעו?', a:'לכיוון היציאה מהשכונה. רכב כהה, בלי לוחיות.', k:1, after:1},
+      {q:'אתה יודע מי עומד מאחורי זה?', a:'יש לי סכסוך עם מישהו. אני אספר לשוטרים.'}],
+  good:'הזירה נסגרה ונאספו תרמילים. המשפחה ללא פגע, ופרטי הרכב הופצו', bad:'כוח בודד נשאר לאבטח את המשפחה ולא יכול לסרוק אחרי הרכב'},
+ {t:'השלכת רימון לעבר בית', rad:'השלכת רימון לחצר בית, רימון נוסף לא התפוצץ', g:'f', pri:1, need:2, ext:['101'], dur:26,
+  o:['זרקו משהו לחצר שלנו והיה פיצוץ!'],
+  qs:[{q:'מישהו נפגע?', a:'הבן שלי נפצע ברגל מרסיסים.', k:1},
+      {q:'מה התפוצץ?', a:'אני חושבת שרימון. ויש עוד אחד בחצר שלא התפוצץ!', k:1},
+      {q:'כולם בתוך הבית, רחוק מהחצר?', a:'כן, כולנו בחדר האחורי. לא מתקרבים.', after:1},
+      {q:'ראית מי זרק?', a:'לא ראיתי. שמעתי קטנוע בורח מיד אחרי.'}],
+  good:'הזירה בודדה וחבלן נטרל את הרימון השני. הפצוע פונה במצב קל', bad:'כוח בודד לא הצליח לבודד את הרחוב עד שהגיע חבלן'},
+ {t:'ילד נעדר', rad:'ילד נעדר', g:'f', pri:1, need:2, dur:24,
+  o:['הבן שלי נעלם! היינו בגן השעשועים, הסתובבתי לשנייה והוא לא שם!'],
+  qs:[{q:'בן כמה הילד ומה שמו?', a:'בן חמש. קוראים לו יואב.', k:1},
+      {q:'מה הוא לובש?', a:'חולצה צהובה, מכנסיים קצרים כחולים וסנדלים.', k:1},
+      {q:'לפני כמה זמן ראית אותו?', a:'לפני עשר דקות בערך.'},
+      {q:'יש מקום קרוב שהוא אוהב ללכת אליו?', a:'יש קיוסק בפינה שהוא תמיד מבקש ללכת אליו. ויש שם כביש!'}],
+  good:'הילד אותר בריא ושלם ליד הקיוסק והוחזר לאמו', bad:'הסריקה עם כוח בודד התארכה. הילד אותר בסוף על ידי עובר אורח'},
+ {t:'קשיש נעדר', rad:'קשיש נעדר', g:'f', pri:1, need:1, dur:22,
+  o:['שלום, אבא שלי יצא מהבית לפני שלוש שעות ולא חזר.','הוא בן שמונים ושתיים ולפעמים הוא מתבלבל.'],
+  qs:[{q:'איך הוא נראה ומה הוא לובש?', a:'גבוה, רזה, שיער לבן. מעיל חום וכובע קסקט.', k:1},
+      {q:'יש עליו טלפון?', a:'לא, הטלפון נשאר בבית.'},
+      {q:'לאן הוא רגיל ללכת?', a:'לבית הכנסת או לגינה שליד הבית.', k:1},
+      {q:'הוא זקוק לתרופות?', a:'כן, הוא צריך לקחת תרופות בערב.'}],
+  good:'הקשיש אותר יושב בתחנת אוטובוס במרחק שני רחובות והוחזר לביתו'},
+ {t:'גניבת רכב', rad:'דיווח על גניבת רכב', g:'m', pri:2, need:1, dur:14,
+  o:['ירדתי עכשיו לחניה והרכב שלי לא שם.','החניתי אותו אתמול בערב מתחת לבית.'],
+  qs:[{q:'איזה רכב ומה הצבע?', a:'רכב פנאי לבן, שנת 2021.', k:1},
+      {q:'בדקת שהוא לא נגרר?', a:'כן, בדקתי עם העירייה. הוא לא נגרר.', k:1},
+      {q:'מתי ראית אותו בפעם האחרונה?', a:'אתמול בעשר בלילה, כשהחניתי.'},
+      {q:'המפתחות אצלך?', a:'כן, שני המפתחות אצלי.'}],
+  good:'נגבתה הודעה ראשונית ופרטי הרכב הופצו לכלל היחידות'},
+ {t:'מפגע עירוני', g:'f', pri:3, tgt:['106'],
+  o:['שלום, נפל פה ענף ענק של עץ על המדרכה.','אי אפשר לעבור עם עגלה.'],
+  qs:[{q:'מישהו נפגע?', a:'לא, אף אחד.', k:1},
+      {q:'הענף חוסם את הכביש?', a:'לא, רק את המדרכה. רכבים עוברים רגיל.', k:1},
+      {q:'יש כבלי חשמל קרועים?', a:'לא, אני לא רואה כבלים.'}],
+  np:'ענף על המדרכה, הכביש פנוי. עניין לעירייה', tip:'מפגע שלא חוסם כביש ולא מסכן חיים שייך למוקד העירוני 106.'},
+ {t:'אירוע רפואי', g:'m', pri:3, tgt:['101'],
+  o:['מישהו התמוטט פה ברחוב! הוא פשוט נפל!'],
+  qs:[{q:'הוא בהכרה? הוא נושם?', a:'הוא לא מגיב. הוא נושם, אני חושב.', k:1},
+      {q:'ראית מה קרה לפני שנפל?', a:'הוא הלך לבד עם שקיות מהסופר ופשוט נפל. אף אחד לא נגע בו.', k:1},
+      {q:'בן כמה הוא בערך?', a:'בן שישים בערך.'}],
+  np:'אירוע רפואי בלי חשד לפלילי. הניידת לא נדרשה', tip:'אירוע רפואי בלי חשד לפלילי מועבר מיד למד״א 101, בלי ניידת.'},
+ {t:'שריפה במחסן', rad:'שריפה במחסן בחצר בניין', g:'f', pri:1, need:1, ext:['102'], dur:20,
+  o:['יש עשן שחור שיוצא ממחסן בחצר של הבניין!'],
+  qs:[{q:'יש אנשים לכודים?', a:'לא ראיתי אף אחד בפנים. הדיירים כבר יורדים למטה.', k:1},
+      {q:'מה בוער בדיוק?', a:'מחסן קטן מפח בחצר. כבר יש להבות.'},
+      {q:'יש משהו מסוכן ליד האש?', a:'כן! זה ממש ליד בלוני הגז של הבניין!', k:1, after:1}],
+  good:'הרחוב נחסם והדיירים פונו. האש כובתה לפני שהגיעה לבלוני הגז'},
+ {t:'שיחת סרק', g:'m', pri:3, tgt:'x', a:'(צחוק) ברחוב הבננות שתים עשרה!',
+  o:['אה... שלום... רציתי להזמין פיצה משפחתית עם זיתים.','(צחקוקים ברקע)'],
+  qs:[{q:'זה קו חירום. יש לך מקרה חירום?', a:'(צחוק) כן, אני מת מרעב!', k:1},
+      {q:'בן כמה אתה?', a:'(מישהו לוחש ברקע: תנתק, תנתק)'}],
+  np:'אין שום אירוע בכתובת. שיחת סרק', tip:'שיחת סרק תופסת קו חירום. מסיימים אותה מהר.'},
+ {t:'סכסוך שכנים על חניה', rad:'סכסוך שכנים', g:'m', pri:2, need:1, dur:15,
+  o:['השכן שלי חסם לי את הרכב בכוונה והוא מסרב להזיז.','אנחנו כבר רבע שעה צועקים פה אחד על השני.'],
+  qs:[{q:'יש אלימות או איומים?', a:'הוא מאיים שישבור לי את המראה. עוד לא נגע בי.', k:1},
+      {q:'מי האדם שחסם אותך?', a:'שכן מקומה ראשונה, בן חמישים בערך.'},
+      {q:'היו ביניכם אירועים קודמים?', a:'כן, יש היסטוריה על החניה הזאת. כבר הגשתי תלונה פעם.', after:1}],
+  good:'הצדדים הופרדו והורגעו, הרכב החוסם הוזז והוסבר איך מגישים תלונה'},
+ {t:'גניבה מחנות, חשוד מעוכב', rad:'גנב חנות מעוכב על ידי מאבטח', g:'m', pri:2, need:1, dur:15,
+  o:['שלום, אני מאבטח בסופר. תפסנו מישהו עם סחורה בתיק.','הוא מעוכב אצלנו במשרד.'],
+  qs:[{q:'החשוד מתנגד או אלים?', a:'לא, הוא רגוע. יושב בשקט.', k:1},
+      {q:'מה הוא לקח?', a:'בקבוקי אלכוהול וסכיני גילוח, בערך שמונה מאות שקל.'},
+      {q:'יש תיעוד של הגניבה?', a:'כן, הכול מצולם במצלמות האבטחה.', k:1}],
+  good:'החשוד עוכב לתחנה, הסחורה נתפסה ונאסף תיעוד מהמצלמות'},
+ {t:'חשד לאלימות בדירה', rad:'חשד לאלימות בדירה', g:'m', pri:1, need:2, opt:['101'], dur:24,
+  o:['אני שומע צעקות נוראיות מהדירה מעליי.','זו לא פעם ראשונה.'],
+  qs:[{q:'מה בדיוק אתה שומע?', a:'אישה צועקת ״תעזוב אותי״ ודברים נשברים. ועכשיו פתאום שקט.', k:1},
+      {q:'יש ילדים בדירה?', a:'כן, יש להם ילד קטן.', k:1},
+      {q:'באיזו קומה הדירה?', a:'קומה רביעית, הדלת מימין למעלית.'},
+      {q:'היו שם אירועים בעבר?', a:'כן. לפני חודש גם הייתה פה משטרה.'}],
+  good:'הכוחות נכנסו לדירה והפרידו בין הצדדים. חשוד עוכב לחקירה וגורמי הרווחה עודכנו', bad:'כוח בודד בדירה מול שני מבוגרים וילד. נדרש תגבור והטיפול התעכב'},
+ {t:'הונאת קשישים, שליח בדרך', rad:'חשד להונאת קשישים, שליח בדרך לכתובת', g:'f', pri:1, need:1, dur:18,
+  o:['שלום, רציתי לשאול משהו.','התקשר אליי בחור מהבנק ואמר שפרצו לי לחשבון. הוא שולח שליח לקחת את הכרטיס ואת הקוד.'],
+  qs:[{q:'מסרת לו פרטים או את הקוד?', a:'אמרתי לו את מספר תעודת הזהות. את הקוד עוד לא.', k:1},
+      {q:'מתי השליח אמור להגיע?', a:'הוא אמר תוך עשר דקות. כבר הכנתי את הכרטיס במעטפה.', k:1},
+      {q:'את יכולה לא לפתוח את הדלת עד שנגיע?', a:'טוב, אני לא אפתח לאף אחד.', after:1},
+      {q:'איך הוא הציג את עצמו?', a:'רועי, ממחלקת הביטחון של הבנק.'}],
+  good:'השליח נעצר בכניסה לבניין עם מעטפות נוספות. הקשישה לא מסרה את הכרטיס',
+  tip:'בנק לא שולח שליח לאסוף כרטיס. זו הונאה בזמן אמת, וזה דחוף.'},
+ {t:'אדם משוטט בכביש', rad:'אדם משוטט בכביש בין רכבים', g:'m', pri:1, need:1, opt:['101'], dur:16,
+  o:['יש פה בן אדם שהולך באמצע הכביש בין המכוניות.','הוא נראה שיכור לגמרי.'],
+  qs:[{q:'הוא מסכן את עצמו או אחרים?', a:'רכבים בולמים לידו כל הזמן. עוד רגע דורסים אותו.', k:1},
+      {q:'יש לו משהו ביד?', a:'רק בקבוק.'},
+      {q:'איך הוא נראה?', a:'בן ארבעים בערך, בלי חולצה, צועק על נהגים.'}],
+  good:'האיש הורחק מהכביש בלי פגע והועבר לבדיקה רפואית'},
+ {t:'שאלת מידע', g:'m', pri:3, tgt:'110',
+  o:['שלום, רציתי לדעת איך מוציאים תעודת יושר.','אני צריך אותה לעבודה חדשה.'],
+  qs:[{q:'יש לך מקרה חירום כרגע?', a:'לא, סתם שאלה. לא קרה כלום.', k:1}],
+  np:'אין אירוע בכתובת. הפונה ביקש מידע בלבד', tip:'שאלות מידע שייכות למוקד 110 ולא לקו החירום.'},
+ {t:'חשודים ליד רכבים חונים', rad:'חשודים בודקים רכבים חונים', g:'f', pri:1, need:1, dur:18,
+  o:['יש רכב שעומד מול הבניין שלנו כבר שעתיים עם שני אנשים בפנים.','הם מאירים עם פנס על הכניסות של הבניינים.'],
+  qs:[{q:'מה הם עושים עכשיו?', a:'אחד מהם יצא עכשיו והוא בודק ידיות של רכבים חונים, אחד אחד.', k:1},
+      {q:'איזה רכב זה?', a:'רכב כהה, בלי אורות. אני לא רואה את המספר מכאן.'},
+      {q:'איך נראה זה שבודק את הרכבים?', a:'נמוך, כובע שחור, תיק צד. הוא עכשיו ליד הרכב השלישי.', k:1, after:0}],
+  good:'שני חשודים עוכבו. ברכב נמצאו כלי פריצה'},
+ {t:'רמזורים כבויים בצומת', rad:'רמזורים כבויים בצומת, נדרש כיוון תנועה', g:'m', pri:2, need:1, ext:['106'], dur:18,
+  o:['שלום, כל הרמזורים בצומת פה כבויים.','רכבים נכנסים מכל הכיוונים, זה מסוכן.'],
+  qs:[{q:'הייתה תאונה במקום?', a:'עוד לא, אבל כבר היו שתי בלימות חירום.', k:1},
+      {q:'הרמזורים כבויים לגמרי או מהבהבים?', a:'כבויים לגמרי, מכל הכיוונים.'}],
+  good:'הכוח מכוון תנועה בצומת עד שיגיע צוות הרמזורים של העירייה'}
+];
+
+// More to say on every call: extra questions (q), instructions to the caller (ins), things the caller blurts out while forces are on the way (live), and what they say when forces arrive (arr).
+// q / ins entries: [text, answer, counts toward the info score]
+const EXTRA = {
+ 'התפרצות לדירה בזמן אמת':{q:[['באיזו קומה הדירה של השכנים?','קומה שנייה, דירה חמש.']], ins:[['אל תצאי מהדירה ואל תתעמתי איתם.','בסדר, אני לא יוצאת.',1],['אם הם יוצאים מהבניין, תגידי לי לאיזה כיוון.','אני מסתכלת מהחלון.']], live:['הם יורדים עכשיו במדרגות! עם תיקים!','הרכב הלבן מתחיל לזוז!'], arr:'אני רואה את הניידת! הם למטה!'},
+ 'תאונת דרכים עם נפגעים':{q:[['ראית את מספר הרכב הפוגע?','מתחיל בשבע שלוש. את השאר אני לא רואה מכאן.']], ins:[['אל תזיזו את הרוכב. חכו לאמבולנס.','בסדר, אמרתי לכולם לא לגעת בו.',1],['תסמן לרכבים להאט לפני הצומת.','אני עומד ומסמן להם.']], live:['הוא מתחיל לאבד הכרה! תמהרו!'], arr:'הנה הניידת, אני מסמן לה.'},
+ 'תאונת נזק בלבד':{ins:[['תחליפו פרטים ותצלמו את הנזק ואת הרישיונות.','אה, זה מספיק לביטוח? טוב, תודה.',1]]},
+ 'חפץ חשוד':{q:[['ראית מי השאיר אותו?','לא. כשהגעתי הוא כבר היה שם.']], ins:[['אל תיגעו בתיק והתרחקו ממנו לפחות חמישים מטר.','בסדר, אנחנו זזים.',1]], live:['אנשים ממשיכים להגיע לתחנה, אני צועקת להם לזוז.'], arr:'השוטרים הגיעו, הם סוגרים את הרחוב.'},
+ 'מסיבה רועשת בדירה':{q:[['יש שם אלימות או רק רעש?','שותים הרבה וצועקים מהמרפסת. אלימות לא ראיתי.']], ins:[['אל תעלי אליהם שוב. ניידת תגיע כשתתפנה.','טוב. רק שיבואו עוד היום.',1]]},
+ 'קטטה ברחוב':{q:[['הם מוכרים לך מהשכונה?','שניים מהם תמיד יושבים פה בקיוסק.']], ins:[['תתרחק מהם ואל תנסה להפריד.','אני עומד מעבר לכביש.',1]], live:['עוד אחד נפל! הם בועטים בו!','חלק מהם בורחים לכיוון החניון!'], arr:'הנה המשטרה, כולם מתפזרים!'},
+ 'דקירה':{q:[['הפצוע מכיר את הדוקר?','הוא אמר שם של מישהו. לא שמעתי טוב.']], ins:[['שימשיך ללחוץ חזק על הפצע בלי להרים את החולצה.','אני אומרת לו. הוא לוחץ.',1]], live:['הוא נהיה חיוור מאוד, הוא בקושי עונה!'], arr:'הגיעו שוטרים, אני מראה להם לאן הוא ברח.'},
+ 'ירי':{q:[['ראית את מספר הקטנוע?','לא, הכול היה מהר. לא הייתה לוחית מאחור.']], ins:[['תישאר בבית, רחוק מהחלונות.','אני מתרחק מהחלון.',1]], live:['אנשים יוצאים לרחוב, מישהו מנסה לעזור לו.'], arr:'אני רואה אורות כחולים, הם פה.'},
+ 'פיצוץ בתחנת אוטובוס':{q:[['ראית מישהו בורח מהמקום?','מישהו רץ לכיוון הרחוב הראשי מיד אחרי. חולצה כהה.',1]], ins:[['תתרחקו כולם מהתחנה, ייתכן מטען נוסף.','כולם זזים אחורה, אני צועק להם.',1]], live:['יש פה ילדה שבוכה ומחפשת את אמא שלה.','אנשים מנסים לעזור לפצועים, אני מרחיק אותם מהתיק.'], arr:'הגיעו ניידות, הן סוגרות את הכביש.'},
+ 'פיגוע ירי':{q:[['כמה אנשים אתכם בחנות?','שישה. גם שני ילדים.']], ins:[['תישארו נעולים, רחוק מהחלון, ובשקט.','אנחנו מאחורי הדלפק, כולם שקטים.',1]], live:['שומעים עוד יריות! זה קרוב!','הוא עבר ליד החנות! הוא ממשיך לכיכר!'], arr:'שומעים סירנות! ועוד יריות, הרבה!'},
+ 'פיצוץ בלון גז בדירה':{q:[['מישהו סגר את ברז הגז הראשי?','אני לא יודע איפה הוא. אף אחד לא נגע.']], ins:[['אל תיכנסו לבניין. תרחיקו אנשים מהכניסה.','בסדר, אנחנו עומדים בצד השני של הרחוב.',1]], live:['האש מתפשטת לקומה שמעל!'], arr:'הנה המשטרה, וגם הכבאית מגיעה.'},
+ 'פיצוץ רכב':{q:[['את מכירה את הרכב או את הנהג?','זה רכב של מישהו מהבניין ממול. רואים אותו פה כל יום.']], ins:[['אל תתקרבו לרכב, הוא עלול להתפוצץ שוב.','כולם עומדים רחוק.',1]], live:['האש מגיעה לרכב שחונה לידו!'], arr:'הגיעה ניידת, השוטרים מרחיקים את כולם.'},
+ 'ירי לעבר בית':{q:[['יש לכם מצלמות אבטחה?','כן, יש מצלמה מעל הדלת. הכול מוקלט.',1]], ins:[['תישארו על הרצפה, רחוק מהחלונות, עד שהשוטרים דופקים.','בסדר. אנחנו בחדר הפנימי.',1]], live:['אני שומע רכב חוזר לרחוב... אני לא בטוח שזה הם.'], arr:'אני רואה ניידת בחוץ.'},
+ 'השלכת רימון לעבר בית':{q:[['יש לכם סכסוך עם מישהו?','בעלי קיבל איומים בשבוע שעבר.']], ins:[['תלחצי על הפצע של הבן עם בד נקי.','אני לוחצת עם מגבת.',1]], live:['הבן שלי בוכה, יש הרבה דם.'], arr:'הם הגיעו, אני שומעת אותם בחוץ.'},
+ 'ילד נעדר':{q:[['יש לך תמונה עדכנית שלו בטלפון?','כן, צילמתי אותו הבוקר.',1]], ins:[['תישארי בגן השעשועים. אם הוא חוזר, הוא יחפש אותך שם.','בסדר, אני נשארת פה.',1]], live:['אמהות אחרות מחפשות איתי, אף אחד לא ראה אותו!'], arr:'השוטרים פה, אני מראה להם תמונה.'},
+ 'קשיש נעדר':{q:[['זה קרה כבר בעבר?','פעם אחת. מצאנו אותו אז ליד קופת החולים.',1]], ins:[['תישארי בבית למקרה שיחזור, ותכיני תמונה שלו.','בסדר. יש לי תמונה מהחג.',1]], arr:'הגיע שוטר, אני נותנת לו את התמונה.'},
+ 'גניבת רכב':{q:[['יש ברכב מערכת איתור?','כן, יש. אני מתקשר לחברת האיתור עכשיו.',1],['יש מצלמות בחניה?','יש מצלמה בכניסה לחניון.']], ins:[['תכין רישיון רכב ותעודת זהות לשוטר.','בסדר, אני מביא.']]},
+ 'מפגע עירוני':{ins:[['אני מעביר את זה למוקד העירוני. תתרחקי מהעץ.','תודה רבה.']]},
+ 'אירוע רפואי':{ins:[['אני מעביר אותך למד״א. תישאר לידו.','בסדר, אני איתו.']]},
+ 'שריפה במחסן':{q:[['יש רכב שחוסם את הגישה לחצר?','כן, יש רכב שחונה על הכניסה.']], ins:[['תתרחקו מהחצר ואל תנסו לכבות לבד.','כולם יצאו לרחוב.',1]], live:['האש מגיעה לגדר! זה ממש ליד הבלונים!'], arr:'המשטרה הגיעה, הם מזיזים אנשים.'},
+ 'שיחת סרק':{noGen:1, ins:[['חיוג סרק לקו חירום הוא עבירה.','(צחוק, ואז שקט על הקו)']]},
+ 'סכסוך שכנים על חניה':{q:[['הוא עדיין ליד הרכב?','כן, הוא עומד שם ומחכה שאני אעשה משהו.'],['אתה צריך לצאת בדחיפות?','כן, אני צריך לאסוף את הילדה מחוג.']], ins:[['תתרחק ממנו בבקשה ואל תפתח עימות. חכה לשוטרים בצד.','טוב. אני עולה הביתה ומחכה.',1]], live:['הוא עכשיו מצלם אותי בטלפון וצועק.'], arr:'הנה הניידת. תודה.'},
+ 'גניבה מחנות, חשוד מעוכב':{q:[['יש לו תעודה מזהה?','כן, הוא נתן לי תעודת זהות.']], ins:[['אל תשתמשו בכוח. רק תשגיחו עליו עד שנגיע.','ברור. הוא יושב ואנחנו לידו.',1]], arr:'השוטרים נכנסו לסניף.'},
+ 'חשד לאלימות בדירה':{ins:[['אל תעלה לדירה. תגיד לי אם מישהו יוצא ממנה.','בסדר. אני ליד הדלת שלי.',1]], live:['שומעים שוב צעקות! והילד בוכה!'], arr:'שוטרים עולים במדרגות.'},
+ 'הונאת קשישים, שליח בדרך':{ins:[['אל תמסרי כלום לאף אחד, גם אם הוא יתקשר שוב.','טוב. אני לא עונה לו.',1]], live:['מצלצלים לי באינטרקום! מה לעשות?'], arr:'יש שוטרים למטה, אני רואה מהחלון.'},
+ 'אדם משוטט בכביש':{q:[['לאיזה כיוון הוא הולך?','לכיוון הצומת הגדול.']], ins:[['אל תרד לכביש בעצמך. רק תעקוב מרחוק.','אני על המדרכה, רואה אותו.',1]], live:['רכב כמעט פגע בו עכשיו!'], arr:'הגיעה ניידת, הם עוצרים את התנועה.'},
+ 'שאלת מידע':{noGen:1, ins:[['זה קו חירום. למידע מתקשרים למוקד 110.','אה, סליחה. תודה.']]},
+ 'חשודים ליד רכבים חונים':{ins:[['אל תרדי אליהם. תמשיכי לצפות מהחלון.','אני בחושך, הם לא רואים אותי.',1]], live:['הוא פתח דלת של רכב! הוא בפנים!'], arr:'ניידת נכנסה לרחוב, הם רצים!'},
+ 'רמזורים כבויים בצומת':{q:[['באיזה צומת מדובר?','בצומת הגדול של {st}.']], ins:[['סע בזהירות והתרחק מהצומת.','בסדר, אני ממשיך.']]}
+};
+SCEN.forEach(sc => {
+  const e = EXTRA[sc.t] || {};
+  (e.q||[]).forEach(x => sc.qs.push({q:x[0], a:x[1], k:x[2]?1:0}));
+  (e.ins||[]).forEach(x => sc.qs.push({q:x[0], a:x[1], k:x[2]?1:0, ins:1}));
+  sc.live = e.live || []; sc.arr = e.arr || ''; sc.noGen = !!e.noGen;
+});
+const OPS = {f:['נועה','שני','מאיה','הדר'], m:['אורי','גיל','תומר','איתי']};
+const NAMES = {f:['מיכל','רונית','שירה','נועה','אורלי','טל','דנה','יעל'], m:['אבי','יוסי','משה','רועי','אלון','עידו','דוד','ניר']};
+
+// Three shifts. Incidents marked with sh only come up on those shifts.
+const SHIFTS = {m:{name:'משמרת בוקר', start:7, hours:'07:00 עד 15:00', sub:'עסקים פתוחים, תנועה, בתי ספר'}, e:{name:'משמרת ערב', start:15, hours:'15:00 עד 23:00', sub:'עומס חזרה הביתה, בילויים'}, n:{name:'משמרת לילה', start:23, hours:'23:00 עד 07:00', sub:'רעש, מסיבות, רחובות ריקים'}};
+const SHIFT_ONLY = {'מסיבה רועשת בדירה':'en', 'קריוקי בחצר':'n', 'נערים מרעישים בגינה':'n', 'ילד נעדר':'me', 'הונאת קשישים, שליח בדרך':'me', 'גניבה מחנות, חשוד מעוכב':'me', 'רמזורים כבויים בצומת':'me'};
+const SHIFT_LEN = 420;          // real seconds
+const RING_LIMIT = 45;          // seconds before a caller gives up
+
+/* ================= HELPERS ================= */
+const $ = s => document.querySelector(s);
+const rnd = (a,b) => a + Math.random()*(b-a);
+const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+/* ================= AUDIO ================= */
+const A = {ctx:null, sound:true, voice:true, he:null, vf:null, vm:null};
+function initAudio(){
+  try{ if(!A.ctx){ const C = window.AudioContext || window.webkitAudioContext; if(C) A.ctx = new C(); } if(A.ctx && A.ctx.state==='suspended') A.ctx.resume(); }catch(e){}
+}
+function tone(f, d, vol, type, delay, f2){
+  if(!A.sound || !A.ctx) return;
+  try{
+    const t = A.ctx.currentTime + (delay||0), o = A.ctx.createOscillator(), g = A.ctx.createGain();
+    o.type = type||'sine'; o.frequency.setValueAtTime(f, t);
+    if(f2) o.frequency.linearRampToValueAtTime(f2, t+d);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t+0.015); g.gain.setValueAtTime(vol, t+d-0.03); g.gain.linearRampToValueAtTime(0, t+d);
+    o.connect(g).connect(A.ctx.destination); o.start(t); o.stop(t+d+0.02);
+  }catch(e){}
+}
+function hiss(d, vol, delay){
+  if(!A.sound || !A.ctx) return;
+  try{
+    const n = Math.floor(A.ctx.sampleRate*d), buf = A.ctx.createBuffer(1, n, A.ctx.sampleRate), ch = buf.getChannelData(0);
+    for(let i=0;i<n;i++) ch[i] = Math.random()*2-1;
+    const s = A.ctx.createBufferSource(), f = A.ctx.createBiquadFilter(), g = A.ctx.createGain();
+    s.buffer = buf; f.type='bandpass'; f.frequency.value=1800; f.Q.value=0.8; g.gain.value = vol;
+    s.connect(f).connect(g).connect(A.ctx.destination); s.start(A.ctx.currentTime + (delay||0));
+  }catch(e){}
+}
+// ---- radio sound. A transmission = key click, the voice (with a siren behind it if the unit is driving with one), roger beep.
+let bed = null;
+function noiseSrc(){
+  const n = A.ctx.sampleRate*2, buf = A.ctx.createBuffer(1, n, A.ctx.sampleRate), ch = buf.getChannelData(0);
+  for(let i=0;i<n;i++) ch[i] = (Math.random()*2-1) * (Math.random() < 0.004 ? 3 : 1);     // with the odd crackle
+  const src = A.ctx.createBufferSource(); src.buffer = buf; src.loop = true; return src;
+}
+function bedStart(siren, unit){
+  if(!A.sound || !A.ctx) return;
+  bedStop(true);
+  try{
+    const t = A.ctx.currentTime, out = A.ctx.createGain(); out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(1, t+0.04); out.connect(A.ctx.destination);
+    const nodes = [];                                       // no static under the voice: only the key click, the siren and the closing beep
+    if(siren){
+      const o = A.ctx.createOscillator(), lfo = A.ctx.createOscillator(), lg = A.ctx.createGain(), sf = A.ctx.createBiquadFilter(), sg = A.ctx.createGain();
+      o.type = 'sawtooth'; o.frequency.value = 980; lfo.type = 'triangle'; lfo.frequency.value = siren==='yelp' ? 3.4 : 0.5; lg.gain.value = 340;
+      lfo.connect(lg).connect(o.frequency); sf.type = 'bandpass'; sf.frequency.value = 1300; sf.Q.value = 1.1; sg.gain.value = 0.04;
+      o.connect(sf).connect(sg).connect(out); o.start(t); lfo.start(t); nodes.push(o, lfo);
+    }
+    tone(1750, 0.03, 0.05, 'square'); tone(1250, 0.03, 0.04, 'square', 0.035);              // key-up click
+    bed = {out, nodes, unit:!!unit, timer:setTimeout(() => bedStop(), 12000)};
+  }catch(e){ bed = null; }
+}
+function bedStop(silent){
+  if(!bed) return;
+  const b = bed; bed = null; clearTimeout(b.timer);
+  try{ const t = A.ctx.currentTime; b.out.gain.setValueAtTime(1, t); b.out.gain.linearRampToValueAtTime(0, t+0.06); b.nodes.forEach(n => n.stop(t+0.08)); }catch(e){}
+  if(!silent){
+    const end = b.unit ? clipBuf.__end : null;            // a unit signs off with the recorded walkie-talkie sound
+    if(end && end !== 'loading') playNow(end, 0.8); else { tone(1050, 0.09, 0.06, 'sine', 0.05); hiss(0.05, 0.04, 0.15); }
+  }
+}
+// A transmission of a fixed length, for lines that are shown but not spoken.
+function radioTx(dur, siren, unit){
+  if(!A.sound || !A.ctx || bed) return;
+  bedStart(siren, unit); const mine = bed; setTimeout(() => { if(bed === mine) bedStop(); }, clamp(dur||1.4, 0.6, 7)*1000);
+}
+// ---- recorded radio voices.
+// arrive = "מרכז, סמני לי הגעה לאירוע", used by every unit. An opener is a unit calling in by name ("מרכז נתניה 401"), keyed control|station|call sign,
+// and is played before the arrival report of that unit only.
+const CLIPS = {arrive:'voice/a402.mp3', 'מרכז|נתניה|401':'voice/a401.mp3'};
+const clipBuf = {}; let clipChain = Promise.resolve();
+function playNow(buf, vol){ try{
+  if(buf.el){ buf.el.currentTime = 0; buf.el.volume = vol; const p = buf.el.play(); if(p && p.catch) p.catch(() => {}); return; }
+  const src = A.ctx.createBufferSource(), g = A.ctx.createGain(); src.buffer = buf; g.gain.value = vol; src.connect(g).connect(A.ctx.destination); src.start();
+}catch(e){} }
+function loadClips(){
+  if(!A.ctx) return;
+  const files = Object.assign({__end:'voice/end.mp3'}, CLIPS);
+  Object.keys(files).forEach(k => { if(clipBuf[k]) return; clipBuf[k] = 'loading';
+    fetch(files[k]).then(r => r.arrayBuffer()).then(b => A.ctx.decodeAudioData(b)).then(buf => { clipBuf[k] = buf; })
+      .catch(() => { try{ const el = new Audio(files[k]); el.preload = 'auto'; clipBuf[k] = {el, duration:4}; }catch(e){ clipBuf[k] = null; } }); });   // if the file cannot be fetched, fall back to a plain audio element
+}
+function clipFor(name){ const b = name ? clipBuf[name] : null; return b && b !== 'loading' ? b : null; }
+function playClip(buf){                                     // one recorded clip at a time, in order
+  const run = () => new Promise(res => { try{
+    if(buf.el){ buf.el.currentTime = 0; buf.el.onended = res; buf.el.onerror = res; const p = buf.el.play(); if(p && p.catch) p.catch(res); setTimeout(res, 5000); return; }
+    const src = A.ctx.createBufferSource(), g = A.ctx.createGain(); src.buffer = buf; g.gain.value = 0.95;
+    src.connect(g).connect(A.ctx.destination); src.onended = res; src.start(); setTimeout(res, buf.duration*1000 + 400);
+  }catch(e){ res(); } });
+  clipChain = clipChain.then(run); return clipChain;
+}
+// A spoken transmission: the static and siren start when the voice starts and end when it ends.
+function radioSay(text, o){
+  o = o || {};
+  const clip = A.sound && A.ctx ? clipFor(o.clip) : null;
+  if(clip){                                                 // the recorded report, on its own: no built-in voice on top of it
+    const opener = o.u && S ? clipFor(S.ctl + '|' + S.city.radio + '|' + o.u.cs) : null;
+    bedStart(o.siren, true); const mine = bed;
+    if(opener){ playClip(opener); clipChain = clipChain.then(() => new Promise(r => setTimeout(r, 450))); }   // the unit calls in, a beat, then the report
+    playClip(clip).then(() => { if(bed === mine) bedStop(); });
+    return;
+  }
+  const can = A.voice && A.he && window.speechSynthesis && (A.pend||0) < 6;
+  if(!can){ radioTx(txLen(text), o.siren, !!(o.u || o.unit)); return; }
+  const n = o.u ? (parseInt(o.u.cs,10) || 7) : 0;                                        // each unit keeps its own voice pitch
+  say(text, {force:true, radio:true, unit:!!(o.u || o.unit), bed:o.siren || 'plain', g:o.g || 'm', rate:o.rate || 1.15, pitch:o.pitch || (o.u ? 0.72 + (n%6)*0.045 : undefined)});
+}
+const txLen = text => 0.9 + text.length*0.062;
+const sfx = {
+  ring(){ for(let k=0;k<2;k++) for(let i=0;i<6;i++) tone(i%2?1150:940, 0.05, 0.07, 'square', k*0.55 + i*0.055); },
+  radio(){ radioTx(1.3); },
+  key(){ tone(2100, 0.015, 0.03, 'square'); tone(1500, 0.02, 0.025, 'square', 0.03); },
+  pick(){ tone(520, 0.06, 0.06, 'sine'); },
+  siren(){ tone(620, 0.45, 0.035, 'sawtooth', 0, 1180); tone(1180, 0.45, 0.035, 'sawtooth', 0.45, 620); },
+  good(){ tone(660, 0.09, 0.06, 'sine'); tone(880, 0.12, 0.06, 'sine', 0.1); },
+  bad(){ tone(240, 0.22, 0.07, 'triangle'); }
+};
+
+// Pick the most natural Hebrew voices the device offers, and a woman's and a man's voice when both exist.
+function loadVoices(){
+  try{
+    const all = window.speechSynthesis ? speechSynthesis.getVoices() : [];
+    const he = all.filter(v => /^(he|iw)/i.test(v.lang));
+    const q = v => (/natural|neural|online|premium|enhanced|siri/i.test(v.name) ? 4 : 0) + (/google/i.test(v.name) ? 2 : 0) + (v.localService ? 0 : 1);
+    he.sort((a,b) => q(b)-q(a));
+    const isF = v => /hila|carmit|female|woman/i.test(v.name), isM = v => /avri|asaf|(^|[^e])male|\bman\b/i.test(v.name);
+    A.he = he[0] || null; A.vf = he.find(isF) || null; A.vm = he.find(v => isM(v) && !isF(v)) || null;
+    const note = $('#voiceNote'); if(!note) return;
+    if(!all.length) note.textContent = '';
+    else if(!A.he) note.textContent = 'לא נמצא קול עברי במכשיר הזה, ולכן השיחות יוצגו כטקסט. בדפדפן Edge במחשב יש קולות עבריים טבעיים.';
+    else {
+      const natural = q(A.he) >= 4, two = A.vf && A.vm;
+      note.textContent = 'קול במכשיר: ' + A.he.name + (two ? ' ועוד קול נוסף' : '') + '. ' +
+        (natural ? 'זה קול טבעי.' : 'זה קול בסיסי ולכן נשמע רובוטי. בדפדפן Edge במחשב יש קולות עבריים טבעיים יותר, של גבר ושל אישה.');
+    }
+  }catch(e){}
+}
+const DIG = ['אפס','אחת','שתיים','שלוש','ארבע','חמש','שש','שבע','שמונה','תשע'];
+function spoken(text, radio){
+  let t = text.replace(/יס״מ/g,'יַסָּם').replace(/מד״א/g,'מָדָא').replace(/פ״ת/g,'פֵּ תָּ');
+  if(radio) t = t.replace(/\b4\d\d\b/g, m => m.split('').map(d => DIG[+d]).join(' '));   // call signs are read digit by digit
+  return t.replace(/[״׳]/g,'');
+}
+function say(text, o){
+  o = o || {};
+  if(!A.voice || !A.he || !window.speechSynthesis) return;
+  if(text.charAt(0) === '(') return;                       // stage directions are not spoken
+  try{
+    if(!o.force && (speechSynthesis.speaking || speechSynthesis.pending)) return;
+    const matched = o.g==='f' ? A.vf : o.g==='m' ? A.vm : null;
+    const voice = matched || A.he;
+    const base = o.pitch || (matched ? 1 : o.g==='f' ? 1.25 : o.g==='m' ? 0.8 : 1);
+    const parts = spoken(text, o.radio).match(/[^.!?]+[.!?]*/g) || [text];
+    const clean = parts.map(p => p.trim()).filter(Boolean);
+    clean.forEach((p, idx) => {                            // sentence by sentence, with small natural variations
+      const u = new SpeechSynthesisUtterance(p);
+      A.pend = (A.pend||0) + 1;
+      const done = () => { A.pend = Math.max(0, (A.pend||0) - 1); if(o.bed && idx===clean.length-1) bedStop(); };
+      u.onend = done; u.onerror = done;
+      if(o.bed && idx===0) u.onstart = () => bedStart(o.bed==='plain' ? null : o.bed, o.unit);
+      u.lang = 'he-IL'; u.voice = voice;
+      u.pitch = clamp(base + rnd(-0.06,0.06) + (/[!]/.test(p) ? 0.08 : 0), 0.5, 1.8);
+      u.rate = clamp((o.rate||1) + rnd(-0.04,0.04) + (/[!]/.test(p) ? 0.06 : 0), 0.7, 1.4);
+      u.volume = o.vol||1;
+      speechSynthesis.speak(u);
+    });
+  }catch(e){}
+}
+function hush(){ try{ if(window.speechSynthesis) speechSynthesis.cancel(); }catch(e){} A.pend = 0; bedStop(true); }
+
+// Quiet office noise under the whole shift, so the room feels staffed.
+let amb = null;
+function ambience(on){
+  try{
+    if(on && A.sound){
+      if(!amb){ amb = new Audio('voice/office.mp3'); amb.loop = true; amb.preload = 'auto'; }
+      amb.volume = 0.14; const p = amb.play(); if(p && p.catch) p.catch(() => {});
+    } else if(amb) amb.pause();
+  }catch(e){}
+}
+
+/* ================= START SCREEN ================= */
+let selD = 0, selC = 0, selOp = 'm', selShift = 'e';
+function renderStart(){
+  $('#districts').innerHTML = DISTRICTS.map((d,i) =>
+    `<button type="button" data-d="${i}" aria-pressed="${i===selD}"><b>${esc(d.name)}</b><span>${esc(d.sub)}</span></button>`).join('');
+  const d = DISTRICTS[selD];
+  $('#cities').innerHTML = d.cities.map((c,i) =>
+    `<button type="button" data-c="${i}" aria-pressed="${i===selC}"><b>${esc(c.name)}</b><span>${esc(c.sub)} · בקשר: ${esc(c.radio)}</span></button>`).join('');
+  $('#shifts').innerHTML = Object.keys(SHIFTS).map(k => `<button type="button" data-s="${k}" aria-pressed="${k===selShift}"><b>${SHIFTS[k].name}</b><span>${SHIFTS[k].hours} · ${SHIFTS[k].sub}</span></button>`).join('');
+  $('#soon').innerHTML = '<span>בהמשך:</span>' + d.soon.map(s => `<i>${esc(s)}</i>`).join('');
+}
+$('#ops').addEventListener('click', e => { const b = e.target.closest('[data-op]'); if(!b) return; selOp = b.dataset.op;
+  document.querySelectorAll('#ops button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.op===selOp)));
+  $('#opName').placeholder = selOp==='f' ? 'נועה' : 'אורי'; });
+$('#districts').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; selD = +b.dataset.d; selC = 0; renderStart(); });
+$('#shifts').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; selShift = b.dataset.s; renderStart(); });
+$('#cities').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; selC = +b.dataset.c; renderStart(); });
+$('#btnVoiceTest').addEventListener('click', () => {
+  A.sound = true; A.voice = true; initAudio(); loadVoices(); hush();
+  const d = DISTRICTS[selD], c = d.cities[selC];
+  say('שלום, אני חושבת שפרצו לשכנים שלי. תבואו מהר!', {force:true, g:'f', rate:1.05});
+  loadClips(); radioSay(d.ctl + ' ' + c.radio + ' 401, קיבלתי. יוצא לאירוע בנסיעה דחופה.', {siren:'wail', unit:true});
+});
+$('#btnStart').addEventListener('click', () => {
+  A.sound = $('#optSound').checked; A.voice = $('#optVoice').checked;
+  initAudio(); loadVoices(); loadClips(); loadCineImgs();
+  startShift(DISTRICTS[selD], DISTRICTS[selD].cities[selC]);
+});
+
+/* ================= GAME STATE ================= */
+let S = null, raf = 0, lastT = 0;
+
+function buildGraph(nodes){
+  const n = nodes.length, dist = (a,b) => Math.hypot(nodes[a].x-nodes[b].x, nodes[a].y-nodes[b].y);
+  const adj = Array.from({length:n}, () => new Set());
+  const link = (a,b) => { adj[a].add(b); adj[b].add(a); };
+  const inT = [0]; // minimum spanning tree keeps the city connected
+  while(inT.length < n){
+    let best = null;
+    for(const a of inT) for(let b=0;b<n;b++) if(!inT.includes(b)){ const dd = dist(a,b); if(!best || dd < best[2]) best = [a,b,dd]; }
+    link(best[0], best[1]); inT.push(best[1]);
+  }
+  for(let a=0;a<n;a++){ // plus two nearest neighbours, for a road grid feel
+    const near = [...Array(n).keys()].filter(b => b!==a).sort((p,q) => dist(a,p)-dist(a,q)).slice(0,2);
+    near.forEach(b => link(a,b));
+  }
+  return {adj, dist};
+}
+function route(from, to){
+  const n = S.nodes.length, D = Array(n).fill(Infinity), prev = Array(n).fill(-1), done = Array(n).fill(false);
+  D[from] = 0;
+  for(;;){
+    let u = -1;
+    for(let i=0;i<n;i++) if(!done[i] && (u<0 || D[i]<D[u])) u = i;
+    if(u<0 || D[u]===Infinity || u===to) break;
+    done[u] = true;
+    for(const v of S.graph.adj[u]){ const nd = D[u] + S.graph.dist(u,v); if(nd < D[v]){ D[v] = nd; prev[v] = u; } }
+  }
+  const path = []; let c = to;
+  while(c !== -1){ path.unshift(c); c = prev[c]; }
+  return path;
+}
+// "נתניה 401" on the radio. The riot unit is called by its name and station.
+function rname(u){ return /^\d/.test(u.cs) ? S.city.radio + ' ' + u.cs : u.cs + ' ' + S.city.radio; }
+
+function startShift(district, city){
+  const nodes = city.nodes.map(a => ({n:a[0], x:a[1], y:a[2], s:a[3]||[], st:!!a[4]}));
+  S = {
+    district, city, nodes, ctl:district.ctl, t:0, over:false,
+    calls:[], active:null, incs:[], rec:[], lineNo:0,
+    shift:SHIFTS[selShift], pool:SCEN.filter(sc => !SHIFT_ONLY[sc.t] || SHIFT_ONLY[sc.t].indexOf(selShift) >= 0), deck:[], nextCall:3, ringT:0, uiT:0, chatAt:12, civ:[]
+  };
+  { const typed = ($('#opName').value || '').trim().slice(0,12); S.op = {g:selOp, name: typed || pick(OPS[selOp])}; }
+  S.graph = buildGraph(nodes);
+  const count = clamp(+$('#optUnits').value || 5, 3, UNIT_DEFS.length);
+  const stIdx = Math.max(0, nodes.findIndex(n => n.st));
+  const spots = shuffle([...nodes.keys()].filter(i => i!==stIdx));
+  S.units = UNIT_DEFS.slice(0, count).sort((a,b) => a.ord-b.ord).map((d,i) => {
+    const ni = d.w===2 ? stIdx : spots[i % spots.length];
+    return {cs:d.cs, type:d.type, kind: d.w===2 ? 'van' : /אופנוען/.test(d.type) ? 'moto' : 'car', ang:0, speed:d.speed, w:d.w, node:ni, x:nodes[ni].x, y:nodes[ni].y, state:'free', path:[], inc:null, sel:false, urgent:false};
+  });
+  for(let i=0;i<14;i++){ const a = Math.floor(Math.random()*nodes.length), b = pick([...S.graph.adj[a]]); S.civ.push({a, b, t:Math.random(), sp:rnd(1.6,2.6)}); }
+  $('#hCity').textContent = city.name; $('#hDist').textContent = district.name + ' · ' + city.sub;
+  $('#mapTitle').textContent = 'מפת גזרה · ' + city.name;
+  $('#netName').textContent = S.ctl + ' ⇄ ' + city.radio;
+  $('#log').innerHTML = ''; $('#start').classList.add('hidden'); $('#end').classList.add('hidden'); $('#game').classList.remove('hidden');
+  $('#btnMute').setAttribute('aria-pressed', String(!A.sound)); $('#btnMute').textContent = A.sound ? 'השתק' : 'בטל השתקה';
+  window.scrollTo(0,0);
+  renderIncs(); sizeCanvas(); renderQueue(); renderCall(); renderUnits(); header();
+  log('ops', S.ctl, 'כל כוחות ' + city.radio + ' כאן ' + S.ctl + ', תחילת ' + S.shift.name + '. בדיקת קשר.');
+  log('radio', rname(S.units[0]), S.ctl + ' ' + rname(S.units[0]) + ', שומע היטב.');
+  startCine({intro:true, media:'op-' + S.op.g + '.mp4', loop:true, dur:4.2, kicker:district.name + ' · ' + city.sub, title:S.shift.name + ' · ' + city.name,
+    sub:(S.op.g==='f' ? 'מוקדנית ' : 'מוקדן ') + S.op.name + ' · ' + S.units.length + ' צוותים בגזרה', foot:'הקו הראשון מצלצל בעוד רגע'});
+  ambience(true);
+  lastT = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
+}
+
+/* ================= LOOP ================= */
+function frame(now){
+  const dt = Math.min(0.1, (now-lastT)/1000); lastT = now;
+  if(S && !S.over){
+    if(CINE) cineTick(dt); else { tick(dt); if(!S.over) draw(); }       // the shift clock stands still during a scene
+    if(!S.over) raf = requestAnimationFrame(frame);
+  }
+}
+function tick(dt){
+  S.t += dt;
+  if(S.t >= SHIFT_LEN){ endShift(); return; }
+
+  if(S.t >= S.nextCall && S.calls.length < 4){
+    spawnCall();
+    S.nextCall = S.t + rnd(22,30) - (S.t/SHIFT_LEN)*10;
+  }
+  let ringing = false;
+  for(const c of S.calls.slice()){
+    c.wait += dt; ringing = true;
+    if(c.wait > RING_LIMIT){
+      S.calls.splice(S.calls.indexOf(c),1);
+      record('שיחה שלא נענתה', 0, 'המתקשר ניתק אחרי ' + RING_LIMIT + ' שניות המתנה.', false);
+      renderQueue();
+    }
+  }
+  S.ringT -= dt;
+  if(ringing && !S.active && S.ringT <= 0){ sfx.ring(); S.ringT = 3.2; }
+
+  // the conversation plays line by line
+  const c = S.active;
+  if(c && c.q.length && S.t >= c.nextAt){
+    const l = c.q.shift(); l.ts = fmtS(c.base + (S.t - c.answeredAt)); c.lines.push(l);
+    c.nextAt = S.t + (A.voice && A.he ? 0.5 + l.text.length*0.075 : 0.7 + l.text.length*0.05);   // with a voice, the text keeps pace with the speech
+    if(l.who==='caller') say(l.text, {force:true, g:c.sc.g, rate:c.rate});
+    else if(l.who==='op') say(l.text, {force:true, g:S.op.g, rate:1.08, pitch:S.op.g==='f' ? 1.1 : 0.95});
+    if(l.reveal!=null){ c.rev[l.reveal] = true; c.fresh = l.reveal; relay(c, l.reveal); }
+    renderCall();
+  }
+  if(c && c.inc && !c.ending && !c.q.length && c.inc.arrivedAt==null && c.liveI < c.sc.live.length && S.t >= c.liveAt && S.incs.includes(c.inc)){
+    c.q.push({who:'caller', text:c.sc.live[c.liveI++]}); c.liveAt = S.t + rnd(8,12); if(c.nextAt < S.t) c.nextAt = S.t + 0.1;
+  }
+  if(c && c.ending && !c.q.length && S.t >= c.nextAt) closeCall();
+
+  for(const u of S.units){
+    if(u.state!=='enroute') continue;
+    let step = u.speed * (u.urgent?1:0.58) * dt;
+    while(step > 0 && u.path.length){
+      const p = u.path[0], dx = p.x-u.x, dy = p.y-u.y, d = Math.hypot(dx,dy);
+      if(d > 0.05) u.ang = Math.atan2(dy*(CH-64), dx*(CW-68));
+      if(d <= step){ u.x = p.x; u.y = p.y; step -= d; u.path.shift(); }
+      else { u.x += dx/d*step; u.y += dy/d*step; step = 0; }
+    }
+    if(!u.path.length) arrive(u);
+  }
+  ambient(dt);
+  for(const inc of S.incs.slice()){
+    if(inc.askAt!=null && S.t >= inc.askAt){ inc.askAt = null; askForCrew(inc); }
+    if(inc.repAt!=null && S.t >= inc.repAt && inc.sc.pri < 3){ inc.repAt = null; const u = inc.units[0], m = S.ctl + ' ' + rname(u) + ', אני בזירה, מתחיל טיפול.'; log('radio', rname(u), m); radioSay(m, {u}); }
+    if(inc.sceneAt!=null && S.t >= inc.sceneAt + inc.dur) closeInc(inc);
+  }
+  S.uiT -= dt;
+  if(S.uiT <= 0){ S.uiT = 0.5; renderQueue(); header(); if(S.incs.length && !$('#incs').matches(':hover')) renderIncs(); const ct = $('#callTimer'); if(ct && S.active) ct.textContent = callDur(S.active); }
+}
+
+// Moves o toward p by dist map units, turning it to face the way it drives. Returns true on arrival.
+function stepTo(o, p, dist){
+  const dx = p.x-o.x, dy = p.y-o.y, d = Math.hypot(dx,dy);
+  if(d > 0.05) o.ang = Math.atan2(dy*(CH-64), dx*(CW-68));
+  if(d <= dist){ o.x = p.x; o.y = p.y; return true; }
+  o.x += dx/d*dist; o.y += dy/d*dist; return false;
+}
+const CHATTER = ['סיור שגרתי ב{h}, ללא חריגים.','בדיקת רכב חשוד ב{h}, נמצא תקין.','סיימתי בדיקת בעל רישיון ב{h}, ממשיך בסיור.','נקודת תצפית ב{h}, שקט בגזרה.','בדיקת עסק פתוח ב{h}, הכול תקין.'];
+function ambient(dt){
+  // free units patrol slowly between neighbourhoods
+  for(const u of S.units){
+    if(u.state!=='free') continue;
+    if(u.pp){ if(stepTo(u, u.pp, 1.3*dt)){ u.pp = null; u.idle = rnd(3,9); } }
+    else {
+      u.idle = (u.idle==null ? rnd(1,6) : u.idle) - dt;
+      if(u.idle <= 0){
+        const n = S.nodes[u.node];
+        if(Math.hypot(n.x-u.x, n.y-u.y) > 1) u.pp = {x:n.x, y:n.y};
+        else { const k = pick([...S.graph.adj[u.node]]); u.pp = {x:S.nodes[k].x, y:S.nodes[k].y}; u.node = k; }
+      }
+    }
+  }
+  // ambulances, fire engines and city crews drive to the scene
+  for(const inc of S.incs) for(const v of (inc.veh||[])) while(v.path.length && stepTo(v, v.path[0], 5*dt) ) v.path.shift();
+  // civilian traffic
+  for(const v of S.civ){
+    const a = S.nodes[v.a], b = S.nodes[v.b]; v.t += v.sp*dt / Math.max(1, S.graph.dist(v.a, v.b));
+    if(v.t >= 1){ const nb = [...S.graph.adj[v.b]].filter(k => k!==v.a); const nx = nb.length ? pick(nb) : v.a; v.a = v.b; v.b = nx; v.t = 0; }
+  }
+  // routine radio traffic
+  S.chatAt -= dt;
+  if(S.chatAt <= 0){
+    S.chatAt = rnd(26,44);
+    const free = S.units.filter(u => u.state==='free');
+    if(free.length){ const u = pick(free); radioTx(1.3, null, true); log('radio', rname(u), S.ctl + ' ' + rname(u) + ', ' + pick(CHATTER).replace('{h}', S.nodes[u.node].n)); }
+  }
+}
+function spawnVeh(inc, k){
+  const far = [...S.nodes.keys()].sort((a,b) => S.graph.dist(b, inc.ni) - S.graph.dist(a, inc.ni))[0];
+  const i = (inc.veh = inc.veh || []).length;
+  inc.veh.push({k, x:S.nodes[far].x, y:S.nodes[far].y, ang:0,
+    path: route(far, inc.ni).map(n => ({x:S.nodes[n].x, y:S.nodes[n].y})).concat([{x:inc.x + 3.5*Math.cos(2+i*2), y:inc.y + 3.5*Math.sin(2+i*2)}])});
+}
+
+/* ================= CALLS ================= */
+function spawnCall(){
+  if(!S.deck.length) S.deck = shuffle(S.pool);
+  const sc = S.deck.pop(), ni = Math.floor(Math.random()*S.nodes.length), node = S.nodes[ni];
+  const st = pick(node.s.length ? node.s : S.city.streets);
+  const num = Math.floor(rnd(400,899));
+  S.lineNo = S.lineNo % 6 + 1;
+  S.evNo = (S.evNo||0) + 1;
+  S.calls.push({sc, ni, st, num, hood:node.n, wait:0, line:S.lineNo, no:'E-' + String(1400 + S.evNo),
+    phone:'05' + Math.floor(rnd(0,9)) + '-XXX-XX' + String(Math.floor(rnd(10,99))),
+    lines:[], q:[], rev:{}, pressed:{}, ext:{}, fresh:null, nextAt:0, name:pick(NAMES[sc.g]), liveI:0, liveAt:0, rate:(sc.pri===1 ? 1.1 : 1) + rnd(-0.04,0.04),
+    x:clamp(node.x + rnd(-5,5), 4, 96), y:clamp(node.y + rnd(-5,5), 4, 96)});
+  S.ringT = 0; renderQueue();
+}
+function fill(c, txt){ return txt.replace(/\{st\}/g, stName(c.st)); }
+function answer(i){
+  if(S.active) return;
+  const c = S.calls.splice(i,1)[0]; if(!c) return;
+  S.active = c; c.answeredAt = S.t; hush(); sfx.pick();
+  c.base = S.shift.start*3600 + Math.floor(S.t / SHIFT_LEN * 28800); c.opened = fmtS(c.base); { const hi = 'משטרה שלום, ' + (S.op.g==='f' ? 'מדברת ' : 'מדבר ') + S.op.name + '.'; c.lines.push({who:'op', text:hi, ts:c.opened}); say(hi, {force:true, g:S.op.g, rate:1.08, pitch:S.op.g==='f' ? 1.1 : 0.95}); }
+  c.q = c.sc.o.map(t => ({who: t.charAt(0)==='(' ? 'fx' : 'caller', text:fill(c,t)}));
+  c.nextAt = S.t + (A.voice && A.he ? 2.4 : 0.6);
+  renderQueue(); renderCall();
+}
+// What can be said right now: the address, this incident's own questions whose trigger was already heard, a few general ones, then instructions.
+function openQuestions(c){
+  const f = c.sc.g==='f', sent = !!(c.inc && S.incs.includes(c.inc)), list = [], ins = [];
+  if(!c.pressed.addr) list.push({id:'addr', q:'מה הכתובת המדויקת?'});
+  c.sc.qs.forEach((x,i) => { if(!c.pressed[i] && (x.after==null || c.rev[x.after])) (x.ins ? ins : list).push({id:i, q:x.q, ins:!!x.ins, follow:x.after!=null && c.fresh===x.after}); });
+  if(!c.sc.noGen){
+    if(!c.pressed.name) list.push({id:'name', q:'מה שמך?'});
+    if(!c.pressed.here) list.push({id:'here', q: f ? 'את נמצאת כרגע במקום האירוע?' : 'אתה נמצא כרגע במקום האירוע?'});
+    if(sent && !c.pressed.stay) ins.push({id:'stay', ins:true, q: f ? 'הישארי איתי על הקו עד שהכוחות מגיעים.' : 'הישאר איתי על הקו עד שהכוחות מגיעים.'});
+    if(sent && !c.pressed.calm) ins.push({id:'calm', ins:true, q: f ? 'תנשמי. הכוחות כבר בדרך אלייך.' : 'תנשום. הכוחות כבר בדרך אליך.'});
+  }
+  return list.concat(ins);
+}
+function ask(id){
+  const c = S.active; if(!c || c.pressed[id] || c.ending) return;
+  const item = openQuestions(c).find(q => String(q.id)===String(id)); if(!item) return;
+  c.pressed[id] = true; c.fresh = null;
+  let ans;
+  if(id==='addr') ans = c.sc.a || (stName(c.st) + ' ' + c.num + ', ' + c.hood + '.');
+  else if(id==='name') ans = 'קוראים לי ' + c.name + '.';
+  else if(id==='here') ans = 'כן, אני פה ורואה הכול.';
+  else if(id==='stay') ans = 'בסדר, אני איתך על הקו.';
+  else if(id==='calm') ans = 'טוב... תודה. רק שיגיעו מהר.';
+  else { id = +id; ans = fill(c, c.sc.qs[id].a); }
+  sfx.key();
+  c.q.push({who:'op', text:item.q});
+  c.q.push({who: ans.charAt(0)==='(' ? 'fx' : 'caller', text:ans, reveal:id});
+  if(c.nextAt < S.t) c.nextAt = S.t + 0.25;
+  renderCall();
+}
+// "רחוב הרצל", but "שדרות ניצה" and "דרך עכו" as they are.
+function stName(st){ return /^(שדרות|דרך)/.test(st) ? st : 'רחוב ' + st; }
+function addrText(c){ return stName(c.st) + ' ' + c.num + ', ' + c.hood; }
+const extList = c => Object.keys(c.ext).filter(k => c.ext[k]).sort();
+const same = (a,b) => a.length===b.length && a.every(x => b.includes(x));
+
+function decide(act){
+  const c = S.active; if(!c) return;
+  const sc = c.sc, crews = extList(c);
+  if(act==='end'){ endCall(c); return; }
+  if(act==='u' || act==='r'){
+    const sel = S.units.filter(u => u.sel && u.state==='free');
+    if(!sel.length){ c.hint = 'קודם מסמנים כוח אחד לפחות בלוח הכוחות.'; renderCall(); return; }
+    if(c.inc && S.incs.includes(c.inc)) reinforce(c.inc, sel, act==='u'); else dispatch(c, sel, act==='u', crews);
+    c.hint = ''; renderCall(); renderUnits(); return;      // the line stays open after forces are sent
+  } else {
+    if(act==='t' && !crews.length){ c.hint = 'קודם מסמנים לאיזה גורם להעביר: מד״א, כיבוי או עירייה.'; renderCall(); return; }
+    hush();
+    if(sc.pri < 3){
+      record(sc.t, 0, 'האירוע דרש ניידת ולא נשלח אליו כוח.', false);
+      log('bad', S.ctl, 'דיווח חוזר מ' + c.hood + ': ' + sc.t + '. לא נשלח כוח בקריאה הראשונה.');
+    } else if(Array.isArray(sc.tgt)){
+      if(act==='t' && same(crews, sc.tgt)) record(sc.t, 100, 'הועבר לגורם הנכון: ' + sc.tgt.map(k => EXT[k].n).join(', ') + '.', true);
+      else if(act==='t' && sc.tgt.every(k => crews.includes(k))) record(sc.t, 80, 'הוזעקו גם גורמים שלא נדרשו. ' + sc.tip, false);
+      else record(sc.t, 50, sc.tip, false);
+    } else if(sc.tgt === act){
+      record(sc.t, 100, act==='x' ? 'שיחת סרק זוהתה ונותקה.' : 'הפונה הופנה למוקד 110.', true);
+    } else {
+      record(sc.t, 50, sc.tip, false);
+    }
+    if(act==='t') log('ops', S.ctl, crews.map(k => EXT[k].n).join(' ו') + ' עודכנו, ' + c.hood + '.');
+  }
+  S.active = null; S.units.forEach(u => u.sel = false);
+  renderCall(); renderUnits(); renderQueue();
+}
+
+function unitNames(units){
+  const cars = units.filter(u => u.w===1).map(u => u.cs), riot = units.some(u => u.w===2);
+  return (cars.length ? S.city.radio + ' ' + cars.join(', ') : '') + (riot ? (cars.length ? ' ו' : '') + 'יס״מ ' + S.city.radio : '');
+}
+function whereText(inc){ const c = inc.c; return inc.hasAddr ? addrText(c) : (stName(c.st) + ', ' + c.hood + ', אין מספר בית'); }
+function sendUnits(inc, units, urgent){
+  units.forEach((u,i) => {
+    u.state = 'enroute'; u.inc = inc; u.urgent = urgent; u.sel = false; u.pp = null;
+    u.slot = inc.units.indexOf(u);
+    u.path = route(u.node, inc.ni).map(k => ({x:S.nodes[k].x, y:S.nodes[k].y})).concat([{x:inc.x + 3*Math.cos(u.slot*2.1), y:inc.y + 3*Math.sin(u.slot*2.1)}]);
+    u.node = inc.ni;
+    setTimeout(() => { if(S && !S.over){
+      const m = S.ctl + ' ' + rname(u) + (urgent ? ', קיבלתי. יוצא לאירוע בנסיעה דחופה.' : ', קיבלתי. יוצא לאירוע.');
+      log('radio', rname(u), m); if(i===0) radioSay(m, {u, siren: urgent ? 'wail' : null}); else radioTx(1.2, urgent ? 'wail' : null, true);
+    } }, 2600 + i*2200);
+  });
+}
+function dispatch(c, units, urgent, crews){
+  const inc = {c, sc:c.sc, urgent, units:units.slice(), crews:crews.slice(), x:c.x, y:c.y, ni:c.ni, t0:c.answeredAt - c.wait,
+               hasAddr:!!c.rev.addr, arrivedAt:null, sceneAt:null, askAt:null, dur:0};
+  S.incs.push(inc); c.inc = inc; c.liveAt = S.t + rnd(5,8);
+  if(CINE_TYPE[c.sc.t] || CINE_MEDIA[c.sc.t]) startCine({type:CINE_TYPE[c.sc.t], media:CINE_MEDIA[c.sc.t], frames:cineFrames(c.sc.t), cue0:(CINE_FRAMES[c.sc.t]||[])[1], snd:(CINE_FRAMES[c.sc.t]||[])[2], dur:cineFrames(c.sc.t) ? 5.8 : 5.4, title:c.sc.t, sub:'', foot:'הכוחות בדרך'});     // kept clean: no street, city or hour, so one scene fits every city
+  crews.forEach(k => spawnVeh(inc, k));
+  const msg = unitNames(units) + ' כאן ' + S.ctl + '. ' + (c.sc.rad || c.sc.t) + ', ' + whereText(inc) + '. ' + (urgent ? 'נסיעה דחופה.' : 'נסיעה רגילה.');
+  log('ops', S.ctl, msg); radioSay(msg, {g:S.op.g, pitch:S.op.g==='f' ? 1.1 : 0.95, rate:1.12});
+  if(crews.length) log('ops', S.ctl, crews.map(k => EXT[k].n).join(' ו') + ' עודכנו, ' + crews.map(k => EXT[k].crew).join(' ו') + ' בדרך למקום.');
+  sendUnits(inc, units, urgent); renderIncs();
+}
+function reinforce(inc, units, urgent){
+  inc.units.push(...units);
+  const msg = unitNames(units) + ' כאן ' + S.ctl + '. תגבור לאירוע ' + (inc.sc.rad || inc.sc.t) + ', ' + whereText(inc) + '. ' + (urgent ? 'נסיעה דחופה.' : 'נסיעה רגילה.');
+  log('ops', S.ctl, msg); radioSay(msg, {g:S.op.g, pitch:S.op.g==='f' ? 1.1 : 0.95, rate:1.12});
+  sendUnits(inc, units, urgent); renderIncs();
+}
+function addCrew(inc, k){
+  if(inc.crews.includes(k)) return;
+  inc.crews.push(k); if(inc.shown && !inc.shown.includes(k)) inc.shown.push(k); spawnVeh(inc, k);
+  if(inc.missing) inc.missing = inc.missing.filter(x => x!==k);
+  sfx.radio(); log('ops', S.ctl, EXT[k].n + ' עודכן, ' + EXT[k].crew + ' בדרך למקום.'); renderIncs();
+}
+// What the caller says after the forces left is passed on to them over the radio.
+function relay(c, id){
+  const inc = c.inc; if(!inc || !S.incs.includes(inc)) return;
+  let txt = null;
+  if(id==='addr' && !c.sc.a){ inc.hasAddr = true; if(inc.sceneAt!=null && inc.sceneAt > S.t) inc.sceneAt = S.t; txt = 'הכתובת המדויקת ' + addrText(c) + '.'; }
+  else if(typeof id==='number' && c.sc.qs[id].k && !c.sc.qs[id].ins) txt = c.sc.qs[id].a.replace(/^(כן|לא)[!,.]\s*/, '');
+  if(!txt) return;
+  sfx.radio(); log('ops', S.ctl, 'כל הכוחות באירוע כאן ' + S.ctl + ', עדכון מהמתקשר: ' + txt);
+}
+function endCall(c){
+  if(c.ending) return;
+  const t = c.inc ? (c.sc.g==='f' ? 'הכוחות בדרך אלייך. הישארי זמינה בטלפון.' : 'הכוחות בדרך אליך. הישאר זמין בטלפון.') : 'תודה, השיחה מסתיימת.';
+  c.q.push({who:'op', text:t}); c.ending = true;
+  if(c.nextAt < S.t) c.nextAt = S.t + 0.2;
+  renderCall();
+}
+function closeCall(){ S.active = null; S.units.forEach(u => u.sel = false); renderCall(); renderUnits(); renderQueue(); }
+function arrive(u){
+  const inc = u.inc; u.state = 'scene';
+  if(inc && inc.arrivedAt==null){
+    inc.arrivedAt = S.t; inc.repAt = S.t + 5;
+    if(S.active === inc.c && !inc.c.ending && inc.sc.arr){ inc.c.q.push({who:'caller', text:inc.sc.arr}); if(inc.c.nextAt < S.t) inc.c.nextAt = S.t + 0.3; }
+    const m = S.ctl + ' ' + rname(u) + (inc.hasAddr ? (S.op.g==='f' ? '. ' + S.ctl + ', סמני לי הגעה לאירוע.' : '. ' + S.ctl + ', סמן לי הגעה לאירוע.') : ', אני ב' + stName(inc.c.st) + ' בלי מספר בית. סורק את הרחוב.');
+    log('radio', rname(u), m); radioSay(m, {u, siren: inc.urgent ? 'yelp' : null, clip: inc.hasAddr ? 'arrive' : null});
+    inc.sceneAt = inc.hasAddr ? S.t : S.t + 9;
+    const n = inc.units.reduce((a,x) => a + x.w, 0), need = inc.sc.need||1;
+    inc.dur = inc.sc.pri===3 ? 8 : (inc.sc.dur||16) * (n < need ? 1.6 : 1);
+    if(inc.sc.pri<3 && (inc.sc.ext||[]).length) inc.askAt = inc.sceneAt + 3;
+  }
+  renderUnits(); renderIncs();
+}
+function askForCrew(inc){
+  inc.missing = (inc.sc.ext||[]).filter(k => !inc.crews.includes(k)); if(!inc.missing.length) return;
+  inc.dur += 6;
+  inc.late = true;
+  const u = inc.units[0], m = S.ctl + ' ' + rname(u) + ', נדרש כאן ' + inc.missing.map(k => EXT[k].crew).join(' ו') + ' בדחיפות. לא הוזמן.';
+  log('bad', rname(u), m); renderIncs(); radioSay(m, {u, siren: inc.urgent ? 'yelp' : null});
+  inc.shown = inc.crews.concat(inc.missing);
+}
+function closeInc(inc){
+  S.incs.splice(S.incs.indexOf(inc),1); renderIncs();
+  const sc = inc.sc, lead = inc.units[0], n = inc.units.reduce((a,x) => a + x.w, 0);
+  let score, note, ok, result;
+  if(sc.pri===3){
+    score = 25; ok = false; result = sc.np; note = sc.tip;
+  } else {
+    const need = sc.need, short = n < need, notes = [];
+    let s = 0;
+    if((sc.pri===1) === inc.urgent) s += 25;
+    else if(sc.pri===1){ s += 8; notes.push('האירוע דרש נסיעה דחופה.'); }
+    else { s += 16; notes.push('נסיעה רגילה הייתה מספיקה.'); }
+    if(short){ s += 6; notes.push('נדרשו ' + need + ' כוחות.'); }
+    else { const extra = n-need; s += Math.max(4, 20 - extra*7); if(extra>0) notes.push('נשלחו יותר כוחות מהנדרש.'); }
+    const req = sc.ext||[], okc = req.concat(sc.opt||[]);
+    const missing = req.filter(k => !inc.crews.includes(k)), extraC = inc.crews.filter(k => !okc.includes(k));
+    if(missing.length) notes.push('לא הוזעק ' + missing.map(k => EXT[k].n).join(', ') + '.');
+    else if(extraC.length){ s += 5; notes.push('הוזעק בלי צורך: ' + extraC.map(k => EXT[k].n).join(', ') + '.'); }
+    else if(inc.late){ s += 5; notes.push('גורם חיצוני הוזעק רק אחרי שהכוח ביקש אותו.'); }
+    else s += 10;
+    const target = sc.pri===1 ? 60 : 115, took = inc.arrivedAt - inc.t0;
+    s += Math.round(25 * clamp(1 - (took-target)/target, 0, 1));
+    if(took > target) notes.push('זמן הגעה ' + Math.round(took) + ' שניות, היעד ' + target + '.');
+    if(inc.hasAddr) s += 10; else notes.push('לא נלקחה כתובת מדויקת.');
+    const keys = sc.qs.map((x,i) => x.k ? i : -1).filter(i => i>=0), keyFrac = keys.length ? keys.filter(i => inc.c.rev[i]).length/keys.length : 1;
+    s += Math.round(10 * keyFrac);
+    if(keyFrac < 1) notes.push('חסר מידע חשוב שאפשר היה לקבל מהמתקשר.');
+    if(sc.tip && notes.length) notes.push(sc.tip);
+    score = s; ok = !short && !missing.length && s >= 70; result = short ? (sc.bad || sc.good) : sc.good; note = notes.join(' ');
+  }
+  const msg = S.ctl + ' ' + rname(lead) + ', ' + result + '. סיום טיפול.';
+  log('radio', rname(lead), msg); radioSay(msg, {u:lead});
+  setTimeout(() => { if(S && !S.over) log('ops', S.ctl, rname(lead) + ' כאן ' + S.ctl + ', קיבלתי. סיום טיפול.'); }, 1200);
+  inc.units.forEach(u => { u.state = 'free'; u.inc = null; u.path = []; u.urgent = false; u.idle = rnd(3,8); });
+  record(sc.t, score, note, ok);
+  if(S.active === inc.c) closeCall();
+  renderUnits();
+}
+
+/* ================= SCORE / LOG ================= */
+function record(title, score, note, ok){
+  S.rec.push({title, score, note:note||''});
+  log(ok ? 'good' : (score < 50 ? 'bad' : 'ops'), 'סיכום', title + (note ? '. ' + note : ''), score);
+  if(ok) sfx.good(); else if(score < 50) sfx.bad();
+  header();
+}
+function clock(){
+  const m = S.shift.start*60 + Math.floor(S.t / SHIFT_LEN * 480), h = Math.floor(m/60)%24, mm = m%60;
+  return String(h).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
+}
+function fmtS(sec){ sec = Math.floor(sec); return [Math.floor(sec/3600)%24, Math.floor(sec/60)%60, sec%60].map(v => String(v).padStart(2,'0')).join(':'); }
+function clockS(add){
+  const sec = S.shift.start*3600 + Math.floor(S.t / SHIFT_LEN * 28800) + Math.floor(add||0), h = Math.floor(sec/3600)%24, m = Math.floor(sec/60)%60, ss = sec%60;
+  return [h,m,ss].map(v => String(v).padStart(2,'0')).join(':');
+}
+function avg(){ return S.rec.length ? Math.round(S.rec.reduce((a,r) => a+r.score, 0)/S.rec.length) : null; }
+function header(){
+  $('#hClock').textContent = clock();
+  $('#hCount').textContent = S.rec.length;
+  const a = avg(); $('#hScore').textContent = a==null ? '–' : a;
+  $('#shiftFill').style.width = (S.t/SHIFT_LEN*100).toFixed(1) + '%';
+}
+function log(cls, who, text, score){
+  const el = document.createElement('div'); el.className = 'lg ' + cls;
+  el.innerHTML = (score!=null ? `<span class="sc">${score}</span>` : '') + `<time>${clock()}</time><b>${esc(who)}</b>${esc(text)}`;
+  const box = $('#log'); box.prepend(el);
+  while(box.children.length > 60) box.lastChild.remove();
+}
+
+/* ================= RENDER ================= */
+function renderQueue(){
+  const q = $('#queue');
+  $('#qCount').textContent = S.calls.length ? S.calls.length + ' ממתינות' : '';
+  if(!S.calls.length){ q.innerHTML = '<p class="empty">אין שיחות ממתינות.</p>'; return; }
+  q.innerHTML = S.calls.map((c,i) => {
+    const w = Math.floor(c.wait), hot = c.wait > RING_LIMIT*0.6;
+    return `<div class="qrow${hot?' hot':''}"><i class="led"></i><div class="qi"><b>קו ${c.line}</b>
+      <span>ממתין ${w} שניות</span><div class="qbar"><i style="width:${Math.min(100, c.wait/RING_LIMIT*100).toFixed(0)}%"></i></div></div>
+      <button type="button" data-ans="${i}" ${S.active?'disabled':''}>מענה</button></div>`;
+  }).join('');
+}
+$('#queue').addEventListener('click', e => { const b = e.target.closest('[data-ans]'); if(b) answer(+b.dataset.ans); });
+
+function callDur(c){ const d = Math.max(0, Math.floor(S.t - c.answeredAt)); return String(Math.floor(d/60)).padStart(2,'0') + ':' + String(d%60).padStart(2,'0'); }
+// The questions or the instructions, whichever tab is open.
+function tabList(c){ const all = openQuestions(c), ins = c.tab==='i'; return {all, list: all.filter(q => !!q.ins === ins)}; }
+function renderCall(){
+  const c = S.active, box = $('#call');
+  $('#callLine').textContent = (c ? 'קו ' + c.line + ' · ' : '') + (S.op.g==='f' ? 'מוקדנית ' : 'מוקדן ') + S.op.name;
+  if(!c){ box.innerHTML = '<div class="idle"><video class="idlevid" src="op-' + S.op.g + '.mp4" autoplay muted loop playsinline></video><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><b>המוקד מאזין</b><span>כשקו מצלצל, לוחצים על ״מענה״</span></div>'; return; }
+  const names = {caller:'מתקשר', op:esc(S.op.name), fx:''};
+  const tr = c.lines.map(l => `<div class="ln ${l.who}"><b>${names[l.who]}</b><span class="tx">${esc(l.text)}</span><time>${(l.ts||'').slice(3)}</time></div>`).join('');
+  const exact = c.rev.addr && !c.sc.a, sent = !!(c.inc && S.incs.includes(c.inc));
+  const t = tabList(c), nq = t.all.filter(q => !q.ins).length, ni = t.all.length - nq;
+  const keep = box.querySelector('.call-scroll'), top = keep ? keep.scrollTop : 0;
+  box.innerHTML = `<div class="call-scroll">
+      <div class="callmeta"><span class="rec">מוקלט <span id="callTimer">${callDur(c)}</span></span><span>אירוע ${c.no}</span><span dir="ltr">${c.phone}</span></div>
+      <div class="loc ${exact?'ok':'warn'}"><span>${exact ? 'כתובת מאומתת' : 'איכון משוער'}</span><b>${esc(exact ? addrText(c) : stName(c.st) + ', ' + c.hood)}</b></div>
+      <div class="transcript" id="tr">${tr}${c.q.length ? '<span class="cursor"></span>' : ''}</div>
+      <div class="tabs"><button type="button" data-tab="q" aria-pressed="${c.tab!=='i'}">שאלות<i>${nq}</i></button><button type="button" class="i" data-tab="i" aria-pressed="${c.tab==='i'}">הנחיות למתקשר<i>${ni}</i></button></div>
+      <div class="qs ${c.tab==='i'?'ins':''}">${t.list.length ? t.list.map((q,i) => `<button type="button" data-ask="${q.id}" class="${q.follow?'new':''}"><kbd>${i+1}</kbd><span>${esc(q.q)}</span></button>`).join('') : `<p class="empty">${c.tab==='i' ? 'אין הנחיות נוספות.' : 'אין שאלות נוספות.'}</p>`}</div>
+    </div>
+    <div class="call-foot">
+      <div class="exts">${Object.keys(EXT).map(k => `<button type="button" data-ext="${k}" aria-pressed="${sent ? c.inc.crews.includes(k) : !!c.ext[k]}"><b>${k}</b>${EXT[k].crew}</button>`).join('')}</div>
+      <div class="dec"><button type="button" class="u" data-act="u">${sent ? 'תגבור דחוף' : 'שיגור דחוף'}</button><button type="button" class="r" data-act="r">${sent ? 'תגבור רגיל' : 'שיגור רגיל'}</button></div>
+      ${sent ? `<button type="button" class="endcall" data-act="end" ${c.ending?'disabled':''}>סיום שיחה · באירוע: ${esc(c.inc.units.map(u => u.cs).join(', '))}</button>` :
+      `<p class="sub">בלי ניידת</p>
+      <div class="xfer">
+        <button type="button" data-act="t"><b>העברה</b>לגורם המסומן</button>
+        <button type="button" data-act="110"><b>110</b>מידע</button>
+        <button type="button" data-act="x"><b>ניתוק</b>סרק</button>
+      </div>`}
+      <p class="hint" role="status">${esc(c.hint||'')}</p>
+    </div>`;
+  const sc2 = box.querySelector('.call-scroll'); if(sc2) sc2.scrollTop = top;
+  const el = $('#tr'); if(el) el.scrollTop = el.scrollHeight;
+}
+document.addEventListener('keydown', e => {          // number keys ask the matching question
+  if(!S || S.over || !S.active || e.ctrlKey || e.metaKey || e.altKey) return;
+  const n = +e.key; if(!(n >= 1 && n <= 9)) return;
+  const q = tabList(S.active).list[n-1]; if(q){ e.preventDefault(); ask(q.id); }
+});
+$('#call').addEventListener('click', e => {
+  const tb = e.target.closest('[data-tab]'); if(tb && S.active){ S.active.tab = tb.dataset.tab; renderCall(); return; }
+  const a = e.target.closest('[data-ask]'); if(a){ ask(a.dataset.ask); return; }
+  const x = e.target.closest('[data-ext]'); if(x && S.active){ const c = S.active, k = x.dataset.ext; if(c.inc && S.incs.includes(c.inc)) addCrew(c.inc, k); else c.ext[k] = !c.ext[k]; c.hint = ''; renderCall(); return; }
+  const d = e.target.closest('[data-act]'); if(d) decide(d.dataset.act);
+});
+
+const UICON = {
+  car:'<svg viewBox="0 0 34 18" aria-hidden="true"><rect x="2" y="3" width="30" height="12" rx="4" fill="#f2f5f9"/><rect x="5" y="4" width="18" height="2" fill="#1d4f9c"/><rect x="5" y="12" width="18" height="2" fill="#1d4f9c"/><rect x="23" y="5" width="4" height="8" fill="#0f1c2b"/><rect x="14" y="4" width="3" height="5" fill="#ff3b47"/><rect x="14" y="9" width="3" height="5" fill="#2f7dff"/></svg>',
+  moto:'<svg viewBox="0 0 34 18" aria-hidden="true"><rect x="3" y="7" width="7" height="4" rx="1" fill="#1a2330"/><rect x="24" y="7" width="7" height="4" rx="1" fill="#1a2330"/><rect x="8" y="5" width="18" height="8" rx="3.5" fill="#f2f5f9"/><rect x="12" y="5" width="4" height="8" fill="#1d4f9c"/><circle cx="18" cy="9" r="3.4" fill="#10202f"/></svg>',
+  van:'<svg viewBox="0 0 34 18" aria-hidden="true"><rect x="1" y="2" width="32" height="14" rx="3.5" fill="#2a3d5c"/><rect x="5" y="8" width="18" height="2" fill="#e9edf2"/><rect x="24" y="4" width="4" height="10" fill="#0f1c2b"/><rect x="14" y="3" width="3" height="6" fill="#ff3b47"/><rect x="14" y="9" width="3" height="6" fill="#2f7dff"/></svg>'
+};
+function renderIncs(){
+  const box = $('#incs'); if(!box) return;
+  $('#incCount').textContent = S.incs.length ? S.incs.length + ' פתוחים' : '';
+  if(!S.incs.length){ box.innerHTML = '<p class="empty">אין אירועים פתוחים.</p>'; return; }
+  box.innerHTML = S.incs.map((inc,i) => {
+    const st = inc.arrivedAt==null ? 'כוחות בדרך' : 'כוחות בזירה', want = (inc.missing||[]).filter(k => !inc.crews.includes(k));
+    return `<div class="irow${want.length?' want':''}"><div class="ii"><b>${esc(inc.sc.t)}</b>
+      <span>${esc(inc.c.hood)} · ${st} · ${esc(inc.units.map(u => u.cs).join(', '))}${want.length ? ' · <em>הכוח מבקש ' + want.map(k => EXT[k].crew).join(' ו') + '</em>' : ''}</span></div>
+      <div class="ib">${Object.keys(EXT).map(k => `<button type="button" data-ic="${i}:${k}" aria-pressed="${inc.crews.includes(k)}" title="${EXT[k].crew}">${k}</button>`).join('')}
+      <button type="button" class="rf" data-ir="${i}">תגבור</button></div></div>`;
+  }).join('');
+}
+$('#incs').addEventListener('click', e => {
+  const a = e.target.closest('[data-ic]');
+  if(a){ const p = a.dataset.ic.split(':'), inc = S.incs[+p[0]]; if(inc) addCrew(inc, p[1]); if(S.active) renderCall(); return; }
+  const r = e.target.closest('[data-ir]');
+  if(r){ const inc = S.incs[+r.dataset.ir], sel = S.units.filter(u => u.sel && u.state==='free');
+    if(!inc) return;
+    if(!sel.length){ $('#incCount').textContent = 'קודם מסמנים כוח פנוי ברשימת הכוחות'; return; }
+    reinforce(inc, sel, inc.urgent); renderUnits(); if(S.active) renderCall(); }
+});
+function renderUnits(){
+  const lab = {free:'זמין', enroute:'בדרך', scene:'בזירה'};
+  $('#units').innerHTML = S.units.map((u,i) =>
+    `<button type="button" class="unit ${u.state}" data-u="${i}" aria-pressed="${u.sel}" ${u.state!=='free'?'disabled':''}>
+      ${UICON[u.kind]}<span class="cs">${u.cs}</span><span class="ty">${u.type} · ${esc(u.state!=='free' && u.inc ? u.inc.c.hood : S.nodes[u.node].n)}</span>
+      <span class="stx">${lab[u.state]}${u.state==='enroute' && u.urgent ? ' דחוף' : ''}</span></button>`).join('');
+  const n = S.units.filter(u => u.sel).length;
+  $('#selCount').textContent = n ? n + ' מסומנים' : S.units.filter(u => u.state==='free').length + ' זמינים';
+}
+$('#units').addEventListener('click', e => {
+  const b = e.target.closest('[data-u]'); if(!b) return;
+  const u = S.units[+b.dataset.u]; if(u.state!=='free') return;
+  u.sel = !u.sel; if(S.active) S.active.hint = ''; renderUnits(); if(S.active) renderCall();
+});
+
+/* ================= MAP ================= */
+const cv = $('#map'); let cx = cv.getContext('2d');
+let CW = 0, CH = 0;
+function sizeCanvas(){
+  const r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio||1);
+  CW = Math.max(200, r.width); CH = Math.max(160, r.height);
+  cv.width = Math.round(CW*dpr); cv.height = Math.round(CH*dpr); cx.setTransform(dpr,0,0,dpr,0,0); mapLayer = null;
+}
+window.addEventListener('resize', () => { if(S && !S.over){ sizeCanvas(); draw(); if(CINE && !CINE.media) sizeCine(); } });
+const PX = x => 34 + x/100*(CW-68), PY = y => 26 + y/100*(CH-64);
+function box(x, y, w, h, r){ cx.beginPath(); if(cx.roundRect) cx.roundRect(x,y,w,h,r); else cx.rect(x,y,w,h); }
+
+let mapLayer = null;
+function seeded(seed){ let a = seed|0; return () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a>>>15, 1|a); t = t + Math.imul(t ^ t>>>7, 61|t) ^ t; return ((t ^ t>>>14)>>>0) / 4294967296; }; }
+// The city itself is drawn once: night ground, side streets and blocks around each neighbourhood, the sea, glowing main roads and labels.
+function buildMapLayer(){
+  const dpr = Math.min(2, window.devicePixelRatio||1), c = document.createElement('canvas');
+  c.width = Math.round(CW*dpr); c.height = Math.round(CH*dpr);
+  const g = c.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0);
+  const N = S.nodes, sea = S.city.sea;
+  const bg = g.createRadialGradient(CW/2,CH/2,40,CW/2,CH/2,Math.max(CW,CH)*0.75);
+  bg.addColorStop(0,'#0b2046'); bg.addColorStop(1,'#040a17'); g.fillStyle = bg; g.fillRect(0,0,CW,CH);
+  let h = 7; for(const ch of S.city.name) h = h*31 + ch.charCodeAt(0) | 0;
+  const R = seeded(h);
+  for(const n of N){                                        // side streets and building blocks
+    const x = PX(n.x), y = PY(n.y), cell = 13 + R()*5, rad = 62 + R()*30, k = Math.ceil(rad/cell);
+    g.save(); g.translate(x,y); g.rotate(R()*Math.PI);
+    for(let i=-k;i<k;i++) for(let j=-k;j<k;j++){
+      const bx = i*cell, by = j*cell, d = Math.hypot(bx+cell/2, by+cell/2); if(d > rad) continue;
+      const a = 1 - d/rad;
+      if(R() < 0.8){ g.fillStyle = 'rgba(52,104,190,' + (0.05 + 0.13*a).toFixed(3) + ')'; g.fillRect(bx+1.5, by+1.5, cell-3, cell-3); }
+      g.strokeStyle = 'rgba(86,150,240,' + (0.26*a).toFixed(3) + ')'; g.lineWidth = 1; g.strokeRect(bx, by, cell, cell);
+    }
+    g.restore();
+  }
+  const seaFill = (path) => { g.save(); path(); g.fillStyle = '#041a35'; g.fill(); g.shadowColor = '#2fd6ff'; g.shadowBlur = 12; g.strokeStyle = 'rgba(47,214,255,.55)'; g.lineWidth = 1.5; g.stroke(); g.restore(); };
+  if(sea.includes('w')){
+    const w = PX(9);
+    seaFill(() => { g.beginPath(); g.moveTo(-20,-20); for(let y=-20;y<=CH+20;y+=14) g.lineTo(w + Math.sin(y/46)*9 + Math.sin(y/17)*3, y); g.lineTo(-20,CH+20); g.closePath(); });
+    g.save(); g.translate(PX(1.5), CH/2); g.rotate(-Math.PI/2); g.fillStyle = 'rgba(120,190,240,.55)'; g.font = '500 13px Rubik, Arial'; g.textAlign = 'center'; g.fillText('הים התיכון', 0, 0); g.restore();
+  }
+  if(sea.includes('n')){
+    const hh = PY(7);
+    seaFill(() => { g.beginPath(); g.moveTo(CW+20,-20); for(let x=CW+20;x>=-20;x-=14) g.lineTo(x, hh + Math.sin(x/52)*8 + Math.sin(x/19)*3); g.lineTo(-20,-20); g.closePath(); });
+    g.fillStyle = 'rgba(120,190,240,.55)'; g.font = '500 13px Rubik, Arial'; g.textAlign = 'center'; g.fillText('מפרץ חיפה', CW*0.62, PY(2.5));
+  }
+  g.lineCap = 'round';                                      // main roads: halo, casing, bright centre line
+  for(const pass of [['rgba(47,125,255,.20)',13],['#0f2a57',7],['#5aa6ff',1.6]]){
+    g.strokeStyle = pass[0]; g.lineWidth = pass[1];
+    for(let a=0;a<N.length;a++) for(const b of S.graph.adj[a]) if(b>a){ g.beginPath(); g.moveTo(PX(N[a].x),PY(N[a].y)); g.lineTo(PX(N[b].x),PY(N[b].y)); g.stroke(); }
+  }
+  g.textAlign = 'center'; g.lineJoin = 'round';
+  for(const n of N){
+    const x = PX(n.x), y = PY(n.y);
+    const gl = g.createRadialGradient(x,y,1,x,y,18); gl.addColorStop(0,'rgba(47,214,255,.75)'); gl.addColorStop(1,'rgba(47,214,255,0)');
+    g.fillStyle = gl; g.beginPath(); g.arc(x,y,18,0,7); g.fill();
+    if(n.st){ g.fillStyle = '#2f7dff'; g.strokeStyle = '#eaf3ff'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(x,y-9); g.lineTo(x+8,y-5); g.lineTo(x+7,y+4); g.lineTo(x,y+9); g.lineTo(x-7,y+4); g.lineTo(x-8,y-5); g.closePath(); g.fill(); g.stroke(); }
+    else { g.fillStyle = '#eaf9ff'; g.beginPath(); g.arc(x,y,3.2,0,7); g.fill(); }
+    const label = n.n + (n.st ? ' · תחנה' : '');
+    g.font = (n.st ? '700' : '500') + ' 13.5px Rubik, Arial';
+    g.strokeStyle = 'rgba(3,9,22,.9)'; g.lineWidth = 4; g.strokeText(label, x, y+27);
+    g.fillStyle = n.st ? '#ffffff' : '#cfe1f8'; g.fillText(label, x, y+27);
+  }
+  const vg = g.createRadialGradient(CW/2,CH/2,Math.min(CW,CH)*0.45,CW/2,CH/2,Math.max(CW,CH)*0.8);   // dark edges
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,.55)'); g.fillStyle = vg; g.fillRect(0,0,CW,CH);
+  if(S.shift.start===7){ g.fillStyle = 'rgba(150,185,235,.16)'; g.fillRect(0,0,CW,CH); }      // daylight
+  if(S.shift.start===23){ g.fillStyle = 'rgba(0,0,12,.22)'; g.fillRect(0,0,CW,CH); }
+  return c;
+}
+function draw(){
+  if(!S) return;
+  cx.shadowBlur = 0;
+  if(!mapLayer) mapLayer = buildMapLayer();
+  cx.drawImage(mapLayer, 0, 0, CW, CH);
+  const N = S.nodes;
+  for(const v of S.civ){ const a = N[v.a], b = N[v.b], off = 3; const ax = PX(a.x), ay = PY(a.y), bx = PX(b.x), by = PY(b.y), an = Math.atan2(by-ay, bx-ax);
+    vehicle('civ', ax + (bx-ax)*v.t - Math.sin(an)*off, ay + (by-ay)*v.t + Math.cos(an)*off, an, false); }
+  cx.textAlign = 'center';
+  for(const c of S.calls.concat(S.active ? [S.active] : [])){
+    const x = PX(S.nodes[c.ni].x), y = PY(S.nodes[c.ni].y), r = 18 + (S.t*18 % 14);
+    cx.strokeStyle = 'rgba(242,179,61,' + (1 - (r-18)/14).toFixed(2) + ')'; cx.lineWidth = 2; cx.beginPath(); cx.arc(x,y,r,0,7); cx.stroke();
+  }
+  for(const inc of S.incs){
+    const x = PX(inc.x), y = PY(inc.y), ph = (S.t*1.6)%1;
+    cx.strokeStyle = 'rgba(255,93,82,' + (1-ph).toFixed(2) + ')'; cx.lineWidth = 2; cx.beginPath(); cx.arc(x,y,7+ph*14,0,7); cx.stroke();
+    cx.fillStyle = '#ff5d52'; cx.beginPath(); cx.arc(x,y,6,0,7); cx.fill();
+    cx.font = '700 12.5px Rubik, Arial'; const tw = cx.measureText(inc.sc.t).width + 14;
+    cx.fillStyle = 'rgba(40,6,10,.88)'; box(x-tw/2, y-34, tw, 19, 5); cx.fill(); cx.strokeStyle = '#ff3b47'; cx.lineWidth = 1; cx.stroke();
+    cx.fillStyle = '#ffe1e3'; cx.fillText(inc.sc.t, x, y-20);
+    const crews = inc.shown || inc.crews;
+    if(crews.length){ cx.font = '500 11.5px Rubik, Arial'; cx.strokeStyle = 'rgba(3,9,22,.9)'; cx.lineWidth = 3; const tx = '+ ' + crews.map(k => EXT[k].crew).join(', '); cx.strokeText(tx, x, y+24); cx.fillStyle = '#35d39a'; cx.fillText(tx, x, y+24); }
+  }
+  for(const u of S.units){
+    if(u.state==='enroute' && u.path.length){
+      cx.strokeStyle = u.urgent ? 'rgba(255,92,102,.75)' : 'rgba(255,181,61,.6)'; cx.lineWidth = 2; cx.setLineDash([6,6]); cx.lineDashOffset = -S.t*14;
+      cx.beginPath(); cx.moveTo(PX(u.x),PY(u.y)); for(const p of u.path) cx.lineTo(PX(p.x),PY(p.y)); cx.stroke(); cx.setLineDash([]);
+    }
+  }
+  for(const inc of S.incs) for(const v of (inc.veh||[])) vehicle(v.k, PX(v.x), PY(v.y), v.ang, true);
+  S.units.forEach(u => {
+    const x = PX(u.x), y = PY(u.y);
+    const col = u.state==='free' ? '#35d39a' : u.state==='enroute' ? '#ffb53d' : '#ff5c66';
+    if(u.sel){ cx.strokeStyle = '#2fd6ff'; cx.lineWidth = 2; cx.setLineDash([4,3]); cx.beginPath(); cx.arc(x,y,19,0,7); cx.stroke(); cx.setLineDash([]); }
+    vehicle(u.kind, x, y, u.ang, u.urgent && u.state!=='free');
+    cx.font = '700 11.5px Rubik, Arial';
+    const w = cx.measureText(u.cs).width + 8;
+    cx.fillStyle = 'rgba(4,10,24,.92)'; box(x-w/2, y+11, w, 15, 4); cx.fill(); cx.strokeStyle = col; cx.lineWidth = 1; cx.stroke();
+    cx.fillStyle = col; cx.textAlign = 'center'; cx.fillText(u.cs, x, y+22.5);
+  });
+}
+// A small top-down vehicle, turned to face the way it drives. flash = emergency lights running.
+function vehicle(kind, x, y, ang, flash){
+  const on = Math.floor(S.t*7)%2;
+  cx.save(); cx.translate(x,y);
+  if(flash){
+    cx.save(); cx.globalCompositeOperation = 'lighter';
+    const red = kind==='fire' || kind==='amb', c1 = (on || red) ? '255,45,45' : '45,125,255';
+    const g = cx.createRadialGradient(0,0,2,0,0,30); g.addColorStop(0,'rgba('+c1+',.55)'); g.addColorStop(1,'rgba('+c1+',0)');
+    if(kind!=='muni' && (!red || on)){ cx.fillStyle = g; cx.beginPath(); cx.arc(0,0,30,0,7); cx.fill(); }
+    cx.restore();
+  }
+  cx.rotate(ang);
+  if(kind==='civ'){
+    cx.fillStyle = '#5d7396'; cx.fillRect(-4,-2,8,4); cx.fillStyle = '#ffe9a0'; cx.fillRect(3,-2,1,1); cx.fillRect(3,1,1,1);
+  } else if(kind==='moto'){
+    cx.fillStyle = '#1a2330'; cx.fillRect(-9,-1.5,5,3); cx.fillRect(5,-1.5,5,3);          // wheels
+    cx.fillStyle = '#eef2f7'; box(-6,-3,12,6,2.5); cx.fill();
+    cx.fillStyle = '#1d4f9c'; cx.fillRect(-3,-3,3,6);
+    cx.fillStyle = '#10202f'; cx.beginPath(); cx.arc(-0.5,0,2.6,0,7); cx.fill();            // rider
+    if(flash){ cx.fillStyle = on ? '#ff3b3b' : '#3b8bff'; cx.fillRect(5,-2.5,2,5); }
+    cx.fillStyle = '#fff3b0'; cx.fillRect(7,-1,1.5,2);
+  } else {
+    const big = kind==='van' || kind==='fire', L = big ? 28 : kind==='amb' ? 26 : 23, W = big ? 13 : 12;
+    const body = {car:'#f2f5f9', van:'#22324a', amb:'#f6f6f6', fire:'#c5362c', muni:'#e2b12a', civ2:'#8a97ab'}[kind];
+    cx.fillStyle = 'rgba(0,0,0,.35)'; box(-L/2+1,-W/2+2,L,W,3); cx.fill();                 // shadow
+    cx.fillStyle = body; box(-L/2,-W/2,L,W,3); cx.fill();
+    if(kind==='car'){ cx.fillStyle = '#1d4f9c'; cx.fillRect(-L/2+2,-W/2+1,L-11,2); cx.fillRect(-L/2+2,W/2-3,L-11,2); }
+    if(kind==='van'){ cx.fillStyle = '#e9edf2'; cx.fillRect(-L/2+3,-1,L-12,2); }
+    if(kind==='amb'){ cx.fillStyle = '#d63a30'; cx.fillRect(-L/2+3,-1,L-13,2); cx.fillRect(-5,-4,2,8); }
+    if(kind==='fire'){ cx.fillStyle = '#e9edf2'; cx.fillRect(-L/2+3,-W/2+2,L-13,1.5); cx.fillRect(-L/2+3,W/2-3.5,L-13,1.5); }
+    cx.fillStyle = '#0f1c2b'; cx.fillRect(L/2-8,-W/2+2,3.5,W-4);                             // windscreen
+    cx.fillRect(-L/2+2.5,-W/2+2.5,2.5,W-5);                                                 // rear window
+    cx.fillStyle = '#fff3b0'; cx.fillRect(L/2-1.5,-W/2+1.5,1.5,2.5); cx.fillRect(L/2-1.5,W/2-4,1.5,2.5);   // headlights
+    if(kind==='civ2'){ /* no light bar */ } else if(kind!=='muni'){                          // light bar across the roof
+      const red = kind==='fire' || kind==='amb';
+      cx.fillStyle = flash ? (on ? '#ff3b3b' : (red ? '#7a1f1a' : '#5a1616')) : '#7a2a2a'; cx.fillRect(-1,-W/2+1,3,W/2-1);
+      cx.fillStyle = flash ? (on ? (red ? '#7a1f1a' : '#16305a') : (red ? '#ff3b3b' : '#3b8bff')) : (red ? '#7a2a2a' : '#27477a'); cx.fillRect(-1,0,3,W/2-1);
+    } else if(flash && on){ cx.fillStyle = '#ffd24a'; cx.fillRect(-1,-2,3,4); }
+  }
+  cx.restore();
+}
+
+/* ================= CINEMATICS ================= */
+// Short letterboxed scenes: a shift opener with the dispatcher, and a drawn reconstruction when an exceptional incident goes out.
+// To use a real clip for an incident, add it here by incident title, e.g. 'תאונת דרכים עם נפגעים':'cine/crash.mp4'.
+const CINE_MEDIA = {};
+const CINE_TYPE = {'תאונת דרכים עם נפגעים':'crash','פיצוץ בתחנת אוטובוס':'blast-stop','פיצוץ רכב':'blast-car','פיצוץ בלון גז בדירה':'blast-flat','שריפה במחסן':'fire',
+  'ירי':'shots-moto','פיגוע ירי':'shots-walk','ירי לעבר בית':'shots-car','השלכת רימון לעבר בית':'grenade'};
+// Photo storyboards: four frames per incident, shown one after the other with a slow push-in. cue = [frame index where it happens, sound].
+const CINE_FRAMES = {'תאונת דרכים עם נפגעים':['01',1,'crash'],'פיצוץ בתחנת אוטובוס':['02',1,'boom1'],'פיצוץ רכב':['03',2,'boom1'],'פיצוץ בלון גז בדירה':['04',1,'boom2'],'שריפה במחסן':['05',2,'fire'],
+  'ירי':['06',1,'pops'],'פיגוע ירי':['07',1,'pops'],'ירי לעבר בית':['08',1,'pops'],'השלכת רימון לעבר בית':['09',2,'boom2']};
+// Recorded sound per scene: [file, seconds of lead-in before its loud moment ('start' = plays from the top of the scene), volume].
+const CINE_SND = {crash:[['sfx/crash.mp3',0.55,1],['sfx/crash-tail.mp3',0,0.45]], boom1:[['sfx/explode1.mp3',0.1,1]], boom2:[['sfx/explode2.mp3',0,1]],
+  fire:[['sfx/fire.mp3','start',0.85]], pops:[['sfx/rifle.mp3',0.45,0.9]]};
+const cineSnd = {};
+function stopCineSnd(){ Object.keys(cineSnd).forEach(k => { try{ cineSnd[k].pause(); cineSnd[k].currentTime = 0; }catch(e){} }); }
+// City and shift versions of a storyboard. When the chosen city has one for the chosen shift it is used; otherwise the general one.
+const CINE_VAR = {'חיפה':{m:{'04':'haifa-m-04'}, e:{'05':'haifa-e-05'}, n:{'05':'haifa-n-05'}},
+  'נתניה':{m:{'01':'netanya-m-01'}, e:{'03':'netanya-e-03'}, n:{'03':'netanya-n-03'}},
+  'תל אביב-יפו':{m:{'02':'ta-m-02'}, e:{'06':'ta-e-06'}, n:{'06':'ta-n-06'}}};
+let cineImgs = {}, cineFor = '';
+function loadCineImgs(){
+  Object.keys(CINE_SND).forEach(k => CINE_SND[k].forEach(x => { if(!cineSnd[x[0]]) try{ const el = new Audio(x[0]); el.preload = 'auto'; cineSnd[x[0]] = el; }catch(e){} }));
+  const city = DISTRICTS[selD].cities[selC].name, v = (CINE_VAR[city]||{})[selShift] || {};
+  if(cineFor !== city + selShift){ cineFor = city + selShift; cineImgs = {}; }
+  Object.keys(CINE_FRAMES).forEach(k => { if(cineImgs[k]) return; const id = v[CINE_FRAMES[k][0]] || CINE_FRAMES[k][0];
+    cineImgs[k] = [1,2,3,4].map(i => { const im = new Image(); im.src = 'cine/' + id + '-' + i + '.jpg'; return im; }); });
+}
+function cineFrames(title){ const a = cineImgs[title]; return a && a.every(im => im.complete && im.naturalWidth) ? a : null; }
+function drawFrames(c){
+  const g = cctx, w = c.w, h = c.h, t = c.t, n = c.frames.length, seg = c.dur/n, i = Math.min(n-1, Math.floor(t/seg)), lt = t - i*seg;
+  const put = (im, z, a, sh) => { const s = Math.max(w/im.naturalWidth, h/im.naturalHeight)*z, dw = im.naturalWidth*s, dh = im.naturalHeight*s;
+    g.globalAlpha = a; g.drawImage(im, (w-dw)/2 + (Math.random()-0.5)*sh, (h-dh)/2 + (Math.random()-0.5)*sh, dw, dh); g.globalAlpha = 1; };
+  g.fillStyle = '#000'; g.fillRect(0,0,w,h);
+  const jolt = c.snd!=='fire' && c.snd!=='pops';
+  (CINE_SND[c.snd]||[]).forEach((x, k) => {                // each recording starts early enough for its loud moment to land on the cut
+    const at = x[1]==='start' ? 0.15 : Math.max(0, c.cue0*seg - x[1]);
+    if(t >= at && !c.cue['s'+k]){ c.cue['s'+k] = 1; const el = cineSnd[x[0]];
+      if(A.sound && el && !el.error){ try{ el.currentTime = 0; el.volume = x[2]; const p = el.play(); if(p && p.catch) p.catch(() => {}); }catch(e){} }
+      else if(k===0) cineSound({crash:'crash', boom1:'boom', boom2:'boom', fire:'hit', pops:'pop'}[c.snd]); }
+  });
+  const hit = jolt && i===c.cue0 && lt < 0.45;
+  put(c.frames[i], 1.03 + 0.05*lt/seg, 1, hit ? (1-lt/0.45)*16 : 0);
+  if(i > 0 && lt < 0.22 && i!==c.cue0) put(c.frames[i-1], 1.08, 1-lt/0.22, 0);           // soft cut, except into the moment itself
+  if(hit && lt < 0.18){ g.fillStyle = 'rgba(255,245,225,' + (1-lt/0.18)*0.7 + ')'; g.fillRect(0,0,w,h); }
+  const vg = g.createRadialGradient(w/2,h/2,Math.min(w,h)*0.35,w/2,h/2,Math.max(w,h)*0.75); vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,.55)'); g.fillStyle = vg; g.fillRect(0,0,w,h);
+  if(t < 0.4){ g.fillStyle = 'rgba(0,0,0,' + (1-t/0.4) + ')'; g.fillRect(0,0,w,h); }
+  if(t > c.dur-0.4){ g.fillStyle = 'rgba(0,0,0,' + (1-(c.dur-t)/0.4) + ')'; g.fillRect(0,0,w,h); }
+}
+let CINE = null;
+const ccv = $('#cineCv'), cctx = ccv.getContext('2d'), cvid = $('#cineVid');
+function cineSound(kind){
+  if(!A.sound || !A.ctx) return;
+  try{
+    const t = A.ctx.currentTime;
+    const noise = (d, vol, lp, delay) => { const n = Math.floor(A.ctx.sampleRate*d), b = A.ctx.createBuffer(1,n,A.ctx.sampleRate), ch = b.getChannelData(0);
+      for(let i=0;i<n;i++) ch[i] = (Math.random()*2-1) * Math.pow(1-i/n, 2);
+      const s = A.ctx.createBufferSource(), f = A.ctx.createBiquadFilter(), g = A.ctx.createGain(); s.buffer = b; f.type = 'lowpass'; f.frequency.value = lp; g.gain.value = vol;
+      s.connect(f).connect(g).connect(A.ctx.destination); s.start(t + (delay||0)); };
+    const thump = (f0, d, vol) => { const o = A.ctx.createOscillator(), g = A.ctx.createGain(); o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(30, t+d);
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t+d); o.connect(g).connect(A.ctx.destination); o.start(t); o.stop(t+d+0.05); };
+    if(kind==='crash'){ noise(0.5, 0.5, 2600); thump(140, 0.35, 0.5); noise(0.9, 0.12, 6000, 0.12); }
+    else if(kind==='boom'){ thump(90, 1.3, 0.8); noise(1.6, 0.6, 700); noise(0.5, 0.25, 5000, 0.05); }
+    else if(kind==='pop'){ noise(0.16, 0.5, 3200); thump(180, 0.09, 0.3); }
+    else if(kind==='hit'){ thump(70, 0.5, 0.5); }
+  }catch(e){}
+}
+function startCine(o){
+  if(!S || !$('#optCine').checked) return false;
+  const el = $('#cine');
+  CINE = Object.assign({t:0, dur:5.4, cue:{}, parts:[]}, o);
+  const rnd2 = (a,b) => a + Math.random()*(b-a);
+  for(let i=0;i<46;i++) CINE.parts.push({a:rnd2(0,6.28), v:rnd2(30,150), s:rnd2(1,3.4), d:rnd2(0,0.5), k:Math.random()});
+  $('#cineK').textContent = o.kicker || 'אירוע חריג'; $('#cineT').textContent = o.title || ''; $('#cineS').textContent = o.sub || '';
+  $('#cineF').textContent = ''; el.classList.toggle('intro', !!o.intro); el.classList.remove('hidden');
+  if(amb && !o.intro) amb.volume = 0.04;
+  cvid.classList.add('hidden'); ccv.classList.remove('hidden');
+  if(o.media){
+    ccv.classList.add('hidden'); cvid.classList.remove('hidden'); cvid.loop = !!o.loop; cvid.src = o.media; cvid.currentTime = 0;
+    const p = cvid.play(); if(p && p.catch) p.catch(() => {});
+    if(!o.loop) cvid.onloadedmetadata = () => { if(CINE && isFinite(cvid.duration)) CINE.dur = Math.min(9, Math.max(3, cvid.duration)); };
+  } else sizeCine();
+  return true;
+}
+function sizeCine(){ const dpr = Math.min(2, window.devicePixelRatio||1), w = window.innerWidth, h = window.innerHeight; ccv.width = Math.round(w*dpr); ccv.height = Math.round(h*dpr); cctx.setTransform(dpr,0,0,dpr,0,0); CINE.w = w; CINE.h = h; }
+function endCine(){
+  if(!CINE) return;
+  const done = CINE.done; CINE = null; try{ cvid.pause(); }catch(e){} stopCineSnd();
+  $('#cine').classList.add('hidden'); lastT = performance.now(); if(amb) amb.volume = 0.14; if(done) done();
+}
+$('#cineSkip').addEventListener('click', endCine);
+function cineTick(dt){
+  const c = CINE; c.t += dt;
+  if(c.foot && c.t > c.dur - 1.8 && !c.cue.foot){ c.cue.foot = 1; $('#cineF').textContent = c.foot; }
+  if(!c.media) drawCine(c);
+  if(c.t >= c.dur) endCine();
+}
+const ease = x => x<0 ? 0 : x>1 ? 1 : 1 - Math.pow(1-x, 3);
+function drawCine(c){
+  if(c.frames){ drawFrames(c); return; }
+  const g = cctx, w = c.w, h = c.h, t = c.t, type = c.type, keep = cx;
+  const once = (name, at, fn) => { if(t >= at && !c.cue[name]){ c.cue[name] = 1; fn(); } };
+  const T0 = {crash:2.2, 'blast-stop':1.7, 'blast-car':1.7, 'blast-flat':1.7, grenade:2.1}[type];      // the moment of impact
+  let shake = 0; if(T0!=null && t > T0 && t < T0+0.5) shake = (1-(t-T0)/0.5) * 7;
+  g.save(); g.fillStyle = '#04070f'; g.fillRect(0,0,w,h);
+  const k = Math.min(w,h)/190 * (1 + t*0.018);
+  g.translate(w/2 + (Math.random()-0.5)*shake*2, h/2 + (Math.random()-0.5)*shake*2); g.scale(k,k);
+  g.translate(0, {fire:50, 'blast-flat':30, 'shots-car':24, grenade:12}[type] || 0);     // keep the action between the black bars
+  cx = g;                                                   // the map's vehicle drawings are reused here
+  const block = (x,y,bw,bh) => { g.fillStyle = '#0d1a30'; g.fillRect(x,y,bw,bh); g.strokeStyle = '#1b3358'; g.lineWidth = 0.6; g.strokeRect(x,y,bw,bh);
+    for(let i=4;i<bw-4;i+=7) for(let j=4;j<bh-4;j+=7){ const lit = (Math.sin(x*3.1+i*1.7+y+j*2.3) > 0.55); g.fillStyle = lit ? 'rgba(255,214,120,.55)' : 'rgba(60,90,140,.25)'; g.fillRect(x+i,y+j,3,3); } };
+  const road = (vert) => { g.fillStyle = '#131c2b'; if(vert) g.fillRect(-22,-400,44,800); else g.fillRect(-500,-22,1000,44);
+    g.strokeStyle = 'rgba(210,220,235,.5)'; g.lineWidth = 1; g.setLineDash([9,9]); g.beginPath(); if(vert){ g.moveTo(0,-400); g.lineTo(0,400); } else { g.moveTo(-500,0); g.lineTo(500,0); } g.stroke(); g.setLineDash([]); };
+  const lamp = (x,y) => { const gl = g.createRadialGradient(x,y,1,x,y,34); gl.addColorStop(0,'rgba(255,225,150,.28)'); gl.addColorStop(1,'rgba(255,225,150,0)'); g.fillStyle = gl; g.beginPath(); g.arc(x,y,34,0,7); g.fill(); };
+  const veh = (kind,x,y,ang,flash) => { g.save(); g.translate(x,y); g.scale(1.25,1.25); vehicle(kind,0,0,ang,flash); g.restore(); };
+  const blast = (x,y,t0,R) => {
+    const e = t - t0; if(e < 0) return;
+    const grow = ease(e/0.45), fade = clamp(1 - (e-0.3)/1.6, 0, 1);
+    const fb = g.createRadialGradient(x,y,1,x,y,R*grow+1); fb.addColorStop(0,'rgba(255,250,220,' + fade + ')'); fb.addColorStop(0.35,'rgba(255,170,50,' + fade*0.95 + ')'); fb.addColorStop(1,'rgba(200,40,10,0)');
+    g.save(); g.globalCompositeOperation = 'lighter'; g.fillStyle = fb; g.beginPath(); g.arc(x,y,R*grow+1,0,7); g.fill(); g.restore();
+    g.strokeStyle = 'rgba(255,255,255,' + clamp(0.7 - e/0.9, 0, 1) + ')'; g.lineWidth = 2; g.beginPath(); g.arc(x,y,R*0.6 + e*170,0,7); g.stroke();      // shock wave
+    for(const p of c.parts){                                 // debris, then smoke
+      const d = Math.min(e, 1.2), px = x + Math.cos(p.a)*p.v*d*(1-d*0.35)*R/60, py = y + Math.sin(p.a)*p.v*d*(1-d*0.35)*R/60;
+      g.fillStyle = p.k < 0.5 ? 'rgba(255,190,90,' + clamp(1-e/1.1,0,1) + ')' : 'rgba(170,180,195,' + clamp(1-e/1.6,0,1) + ')'; g.fillRect(px,py,p.s*0.8,p.s*0.8);
+      if(p.k > 0.55){ const sr = (8 + p.s*4) * Math.min(1, e/1.2) * R/60, sx = x + Math.cos(p.a)*18*R/60 - e*7, sy = y + Math.sin(p.a)*14*R/60 - e*(9+p.s*3);
+        g.fillStyle = 'rgba(70,75,85,' + clamp(0.5 - (e-1.4)/4, 0, 0.5)*Math.min(1,e*3) + ')'; g.beginPath(); g.arc(sx,sy,sr,0,7); g.fill(); }
+    }
+  };
+  const flashShot = (x,y,tx,ty,t0) => { const e = t - t0; if(e < 0 || e > 0.11) return; g.save(); g.globalCompositeOperation = 'lighter';
+    const gl = g.createRadialGradient(x,y,0,x,y,16); gl.addColorStop(0,'rgba(255,245,200,1)'); gl.addColorStop(1,'rgba(255,170,40,0)'); g.fillStyle = gl; g.beginPath(); g.arc(x,y,16,0,7); g.fill();
+    g.strokeStyle = 'rgba(255,235,170,.8)'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(x,y); g.lineTo(tx,ty); g.stroke(); g.restore(); };
+
+  if(type==='crash'){
+    block(-200,-150,150,105); block(48,-150,160,105); block(-200,45,150,110); block(48,45,160,110);
+    road(false); road(true); lamp(-30,-30); lamp(30,30);
+    const hit = 2.2, e = t - hit;
+    let carX = -210 + ease(t/hit)*204, carA = 0, mx = 9, my = 190 - ease((t-0.5)/(hit-0.5))*178, ma = -Math.PI/2;
+    if(e > 0){ const s = ease(e/0.9); carX = -6 + s*16; carA = s*0.32; mx = 9 + s*34; my = 12 - s*30; ma = -Math.PI/2 + s*4.4;
+      for(const p of c.parts.slice(0,18)){ const d = Math.min(e,0.8); g.fillStyle = 'rgba(220,230,240,' + clamp(1-e/2.5,0.25,1) + ')'; g.fillRect(6 + Math.cos(p.a)*p.v*d*0.25, 6 + Math.sin(p.a)*p.v*d*0.25, 1.4, 1.4); } }
+    veh('moto', mx, my, ma, false); veh('civ2', carX, 8, carA, false);
+    if(e > 0.9 && Math.floor(t*2.5)%2){ g.fillStyle = '#ffb53d'; g.fillRect(carX-16, 0, 3, 3); g.fillRect(carX-16, 13, 3, 3); }                       // hazard lights
+    once('crash', hit, () => cineSound('crash'));
+    if(e > 0 && e < 0.25){ g.fillStyle = 'rgba(255,255,255,' + (1-e/0.25)*0.8 + ')'; g.fillRect(-600,-400,1200,800); }
+  } else if(type.indexOf('blast')===0 || type==='grenade'){
+    block(-220,-150,180,95); block(-20,-150,120,95); block(120,-150,110,95); block(-220,48,200,110); block(0,48,230,110);
+    road(false); lamp(-80,-30); lamp(70,30);
+    const T = type==='grenade' ? 2.1 : 1.7;
+    veh('civ2', -260 + t*70, 9, 0, false); veh('civ2', 240 - t*48, -9, Math.PI, false);
+    let bx = 0, by = -34, R = 62;
+    if(type==='blast-stop'){ g.fillStyle = '#22344f'; g.fillRect(-16,-40,32,10); g.fillStyle = 'rgba(120,200,255,.35)'; g.fillRect(-14,-31,28,2);
+      for(let i=0;i<4;i++){ g.fillStyle = '#c9d4e3'; g.beginPath(); g.arc(-10+i*7, -26, 1.8, 0, 7); g.fill(); } }
+    if(type==='blast-car'){ bx = -6; by = -9; R = 58; veh('civ2', -6, -9, 0, false); if(t < T){ veh('moto', 200 - t*150, -2, Math.PI, false); } }
+    if(type==='blast-flat'){ bx = 40; by = -70; R = 70; g.fillStyle = 'rgba(255,214,120,.7)'; g.fillRect(34,-76,12,8); }
+    if(type==='grenade'){ bx = 20; by = -50; R = 30; g.strokeStyle = '#3d5578'; g.lineWidth = 1; g.strokeRect(-18,-64,76,30);            // the yard
+      const sx = 230 - t*150; veh('moto', sx, -8, Math.PI, false);
+      if(t > 1.3 && t < T){ const q = (t-1.3)/(T-1.3), ox = 30 + (bx-30)*q, oy = -8 + (by+8)*q - Math.sin(q*3.14)*16; g.fillStyle = '#d7dee8'; g.beginPath(); g.arc(ox,oy,1.6,0,7); g.fill(); }
+      if(t > T+0.2 && Math.floor(t*4)%2){ g.fillStyle = '#ff3b47'; g.beginPath(); g.arc(-4,-46,2,0,7); g.fill(); } }                    // the one that did not go off
+    blast(bx, by, T, R); once('boom', T, () => cineSound('boom'));
+    if(t > T && t < T+0.3){ g.fillStyle = 'rgba(255,240,210,' + (1-(t-T)/0.3)*0.85 + ')'; g.fillRect(-600,-400,1200,800); }
+  } else if(type==='fire'){
+    block(-200,-150,170,100); block(40,-150,170,100); block(-200,48,420,110);
+    road(false); g.fillStyle = '#1a2a22'; g.fillRect(-26,-150,64,100);                                   // the yard
+    g.fillStyle = '#2a3340'; g.fillRect(-10,-110,26,20);                                                   // the shed
+    g.save(); g.globalCompositeOperation = 'lighter';
+    for(const p of c.parts){ const ph = (t*1.3 + p.k*3) % 1, x = 3 + Math.cos(p.a)*9*(1-ph), y = -98 - ph*(22+p.s*6) + Math.sin(p.a)*5;
+      g.fillStyle = 'rgba(' + (ph < 0.4 ? '255,220,120' : '255,120,30') + ',' + (1-ph)*0.55 + ')'; g.beginPath(); g.arc(x,y,(1-ph)*(4+p.s),0,7); g.fill(); }
+    const gl = g.createRadialGradient(3,-100,2,3,-100,70 + Math.sin(t*9)*6); gl.addColorStop(0,'rgba(255,150,40,.35)'); gl.addColorStop(1,'rgba(255,150,40,0)'); g.fillStyle = gl; g.beginPath(); g.arc(3,-100,80,0,7); g.fill();
+    g.restore();
+    for(const p of c.parts.slice(0,16)){ const ph = (t*0.35 + p.k) % 1; g.fillStyle = 'rgba(80,85,95,' + (1-ph)*0.4 + ')'; g.beginPath(); g.arc(3 - ph*46 + Math.cos(p.a)*6, -118 - ph*70, 6 + ph*16, 0, 7); g.fill(); }
+    for(let i=0;i<5;i++){ g.fillStyle = '#c9d4e3'; g.beginPath(); g.arc(-60 + i*9 - t*3, -14 - (i%2)*4, 1.8, 0, 7); g.fill(); }                      // residents on the pavement
+    once('f1', 0.3, () => cineSound('hit'));
+  } else {                                                  // shootings
+    block(-220,-150,180,95); block(-20,-150,120,95); block(120,-150,110,95); block(-220,48,200,110); block(0,48,230,110);
+    road(false); lamp(-80,-30); lamp(70,30);
+    const shots = [1.5,1.75,2.0,2.4];
+    if(type==='shots-moto'){ const x = 240 - t*95; veh('moto', x, -8, Math.PI, false); g.fillStyle = '#c9d4e3'; g.beginPath(); g.arc(-10,-30,2,0,7); g.fill(); veh('civ2', -30,-30,0,false);
+      shots.forEach((s,i) => { flashShot(240 - s*95, -10, -10, -30, s); once('p'+i, s, () => cineSound('pop')); });
+      if(t > 2.4){ g.fillStyle = '#c9d4e3'; g.fillRect(-13,-31,6,2.4); } }
+    else if(type==='shots-car'){ const stop = clamp((t-0.2)/1.2, 0, 1), go = Math.max(0, t-2.7), x = 260 - ease(stop)*250 - go*go*120;
+      g.fillStyle = 'rgba(255,214,120,.7)'; g.fillRect(-2,-70,8,6); g.fillRect(14,-70,8,6);
+      veh('van', x, -8, Math.PI, false);
+      shots.forEach((s,i) => { flashShot(x, -15, 6 + i*5, -56, s); once('p'+i, s, () => cineSound('pop')); if(t > s){ g.fillStyle = '#ffe9a0'; g.fillRect(5 + i*5, -57, 1.5, 1.5); } }); }
+    else { const x = 120 - t*22; g.fillStyle = '#0b0f17'; g.beginPath(); g.arc(x,-27,3,0,7); g.fill(); g.strokeStyle = '#8fa0b5'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(x,-27); g.lineTo(x-8,-27); g.stroke();
+      for(const p of c.parts.slice(0,14)){ const run = Math.max(0, t-1.4), px = -40 - p.v*0.9 + (p.k-0.5)*30 - run*(30+p.v*0.3), py = -30 + (p.k-0.5)*14 + (p.a > 3 ? 62 : 0);
+        g.fillStyle = '#c9d4e3'; g.beginPath(); g.arc(px,py,1.9,0,7); g.fill(); }
+      shots.forEach((s,i) => { flashShot(120 - s*22 - 9, -27, -30 - i*14, -28 + i*2, s); once('p'+i, s, () => cineSound('pop')); }); }
+  }
+  cx = keep; g.restore();
+  const vg = g.createRadialGradient(w/2,h/2,Math.min(w,h)*0.3,w/2,h/2,Math.max(w,h)*0.75); vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,.8)'); g.fillStyle = vg; g.fillRect(0,0,w,h);
+  if(t < 0.5){ g.fillStyle = 'rgba(0,0,0,' + (1-t/0.5) + ')'; g.fillRect(0,0,w,h); }
+  if(t > c.dur-0.4){ g.fillStyle = 'rgba(0,0,0,' + (1-(c.dur-t)/0.4) + ')'; g.fillRect(0,0,w,h); }
+}
+
+/* ================= END ================= */
+function gradeOf(a){ return a==null ? ['–','לא טופלו אירועים במשמרת'] : a>=90 ? ['מצטיין','אפשר לסמוך עליך בלילה עמוס'] : a>=80 ? ['טוב מאוד','משמרת יציבה, עוד קצת דיוק'] : a>=70 ? ['טוב','הסיווג טוב, אפשר לאסוף יותר מידע'] : a>=55 ? ['מספיק','שואלים יותר ושולחים מדויק יותר'] : ['נכשל','כדאי לחזור על הנהלים ולנסות שוב']; }
+function endShift(){
+  if(CINE){ CINE.done = null; endCine(); }
+  S.over = true; cancelAnimationFrame(raf); hush(); ambience(false);
+  const a = avg(), n = S.rec.length, g = gradeOf(a);
+  const rows = S.rec.map(r => `<tr><td>${esc(r.title)}${r.note ? `<small>${esc(r.note)}</small>` : ''}</td><td>${r.score}</td></tr>`).join('');
+  $('#endCard').innerHTML = `<div class="card-head"><h2>סיכום ${S.shift.name} · ${esc(S.city.name)}</h2><button type="button" class="x" id="btnClose" aria-label="סגירת הסיכום">✕</button></div>
+    <div class="card-in"><div class="scoreline"><span class="big">${a==null ? '–' : a}<small> מתוך 100</small></span><span class="grade">${g[0]}</span></div>
+    <p class="rank">${g[1]} · ${n} אירועים · ${S.units.length} צוותים</p>
+    <div class="actions"><button class="go" id="btnAgain" type="button">משמרת חדשה</button><button class="ghost" id="btnHome" type="button">סיום וחזרה לבחירת עיר</button></div>
+    <div class="tblwrap"><table>${rows || '<tr><td>אין אירועים לסיכום.</td><td></td></tr>'}</table></div></div>`;
+  $('#end').classList.remove('hidden');
+  const home = () => { $('#end').classList.add('hidden'); $('#game').classList.add('hidden'); $('#start').classList.remove('hidden'); window.scrollTo(0,0); };
+  $('#btnClose').addEventListener('click', home);
+  $('#btnHome').addEventListener('click', home);
+  $('#btnAgain').addEventListener('click', () => { initAudio(); startShift(S.district, S.city); });
+}
+$('#btnEnd').addEventListener('click', () => { if(S && !S.over) endShift(); });
+$('#btnMute').addEventListener('click', () => {
+  A.sound = !A.sound; if(!A.sound){ A.voice = false; hush(); } else { A.voice = $('#optVoice').checked; }
+  ambience(A.sound && S && !S.over);
+  $('#btnMute').setAttribute('aria-pressed', String(!A.sound)); $('#btnMute').textContent = A.sound ? 'השתק' : 'בטל השתקה';
+});
+
+/* ================= BOOT ================= */
+renderStart(); loadVoices();
+try{ document.fonts.ready.then(() => { mapLayer = null; }); }catch(e){}
+try{ if(window.speechSynthesis) speechSynthesis.onvoiceschanged = loadVoices; }catch(e){}
+</script>
+</body>
+</html>
