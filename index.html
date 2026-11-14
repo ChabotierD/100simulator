@@ -242,7 +242,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .mapwrap canvas{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:2}
 #lmap{position:absolute;inset:0;z-index:1;background:#040a17;display:none}
 .mapwrap.real #lmap{display:block}
-.mapwrap.real #lmap .leaflet-tile-pane{filter:brightness(1.15) saturate(1.2) hue-rotate(-8deg)}
+.mapwrap.real #lmap .leaflet-tile-pane{filter:invert(1) hue-rotate(195deg) brightness(.78) contrast(1.15) saturate(.55)}   /* OSM's light map turned into a night control-room map */
 #mapAttr{position:absolute;left:6px;bottom:4px;z-index:3;font-size:9.5px;color:rgba(200,215,235,.7);direction:ltr;display:none;pointer-events:none}
 .mapwrap.real #mapAttr{display:block}
 .legend{display:flex;gap:14px}
@@ -554,7 +554,7 @@ html.compact-mode #quickAns span{flex:1}
         <h2><span id="mapTitle">מפת גזרה</span>
           <span class="legend"><span><i style="background:var(--ok)"></i>זמין</span><span><i style="background:var(--accent)"></i>בדרך</span><span><i style="background:var(--crit)"></i>אירוע</span></span>
         </h2>
-        <div class="mapwrap"><div id="lmap"></div><div id="mapAttr">© OpenStreetMap contributors © CARTO</div><canvas id="map" aria-label="מפת העיר עם מיקום הכוחות והאירועים"></canvas></div>
+        <div class="mapwrap"><div id="lmap"></div><div id="mapAttr">© OpenStreetMap contributors</div><canvas id="map" aria-label="מפת העיר עם מיקום הכוחות והאירועים"></canvas></div>
       </section>
       <section class="panel" id="incPanel" data-views="map units">
         <h2><span>אירועים פתוחים</span><span id="incCount"></span></h2>
@@ -2018,7 +2018,7 @@ function realMapStart(){
     if(!LMAP) LMAP = L.map('lmap', {zoomControl:false, attributionControl:false, dragging:false, scrollWheelZoom:false, doubleClickZoom:false, boxZoom:false, keyboard:false, touchZoom:false, zoomSnap:0.25, fadeAnimation:false});
     if(LTILES) LMAP.removeLayer(LTILES);
     let errs = 0;
-    LTILES = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {subdomains:'abcd', maxZoom:19, crossOrigin:true});
+    LTILES = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19});
     LTILES.on('tileerror', () => { if(++errs === 6 && S && S.real) realMapOff(); });     // no internet: back to the drawn map
     LTILES.addTo(LMAP);
   }catch(e){ realMapOff(); }
