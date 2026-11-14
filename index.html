@@ -156,6 +156,20 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .qrow button:disabled{background:var(--panel-2);color:var(--muted);cursor:default}
 .empty{color:var(--muted);font-size:13.5px;margin:4px 2px}
 
+/* one-tap answer, always within reach */
+#quickAns{position:fixed;z-index:15;bottom:max(14px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:12px;
+  background:linear-gradient(180deg,#123a2c,#0b241b);border:1.5px solid var(--ok);border-radius:999px;padding:9px 10px 9px 18px;font-size:15px;box-shadow:0 6px 26px rgba(0,0,0,.6),0 0 18px rgba(53,211,154,.35)}
+[dir="rtl"] #quickAns{padding:9px 18px 9px 10px}
+#quickAns .led{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);animation:pulse 1s ease-in-out infinite}
+#quickAns b{background:linear-gradient(180deg,#4fe6b0,#1fae7c);color:#03160f;border-radius:999px;padding:5px 18px;font-weight:900}
+#quickAns.hot{border-color:var(--crit);box-shadow:0 6px 26px rgba(0,0,0,.6),0 0 22px rgba(255,59,71,.5)}
+#quickAns.hot .led{background:var(--crit);box-shadow:0 0 12px var(--crit);animation-duration:.5s}
+.qrow.held{border-style:dashed}
+.qrow.held .led{background:var(--blue);box-shadow:0 0 10px var(--blue);animation:none}
+.qrow.held button{background:linear-gradient(180deg,#4d95ff,#1c5fe0);color:#fff}
+@media (max-width:900px){ .grid{padding-bottom:84px} }
+@media (max-width:900px){ .top{gap:6px 10px;padding:6px 12px} .top img{width:34px} .top .where{flex:1 1 auto;font-size:17px} .top .where small{display:none} .stat{margin-inline-start:0;min-width:0} .stat span{font-size:10px} .stat b{font-size:17px} .top .tbtn{padding:5px 10px;font-size:13px;margin:0} }
+
 /* call */
 #callPanel{flex:1}
 #call{display:flex;flex-direction:column;overflow:hidden;padding:0}
@@ -380,7 +394,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
     <div class="howto frame">
       <h2>איך משחקים</h2>
       <ol>
-        <li>עונים לקריאה. השאלות משתנות לפי מה שהמתקשר אומר, ותשובה יכולה לפתוח שאלת המשך.</li>
+        <li>כשקו מצלצל לוחצים על ״מענה״, על הכפתור הירוק שצף בתחתית המסך, או על רווח במקלדת. אפשר לענות גם באמצע שיחה אחרת: המתקשר הנוכחי עובר להמתנה ולא מנתק.</li>
+        <li>השאלות משתנות לפי מה שהמתקשר אומר, ותשובה יכולה לפתוח שאלת המשך.</li>
         <li>מסמנים כוחות ברשימה, ואם צריך גם מד״א, כיבוי או עירייה, ואז בוחרים נסיעה דחופה או רגילה.</li>
         <li>בלוח ״אירועים פתוחים״ מוסיפים אמבולנס, כיבוי או עירייה לאירוע בכל רגע, גם בלי כוח נוסף וגם אחרי שהשיחה נסגרה. לתגבור מסמנים כוח פנוי ולוחצים ״תגבור״.</li>
         <li>אחרי השיגור הקו נשאר פתוח: אפשר להמשיך לשאול, לשלוח תגבור, ולסיים את השיחה כשמתאים. באירוע חריג שולחים שניים או שלושה כוחות.</li>
@@ -444,6 +459,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
     </div>
   </div>
 </div>
+
+<button type="button" id="quickAns" class="hidden"><i class="led"></i><span id="quickTxt"></span><b>מענה</b></button>
 
 <div id="cine" class="hidden">
   <canvas id="cineCv"></canvas><video id="cineVid" class="hidden" muted playsinline></video>
@@ -907,7 +924,7 @@ const SHIFTS = {m:{name:'משמרת בוקר', start:7, hours:'07:00 עד 15:00'
 const SHIFT_ONLY = {'מסיבה רועשת בדירה':'en', 'קריוקי בחצר':'n', 'נערים מרעישים בגינה':'n', 'ילד נעדר':'me', 'הונאת קשישים, שליח בדרך':'me', 'גניבה מחנות, חשוד מעוכב':'me', 'רמזורים כבויים בצומת':'me',
   'גניבת אופניים חשמליים בזמן אמת':'me', 'חשד לנהג שיכור':'en', 'פעוט נעול ברכב':'me', 'אזעקה בעסק סגור':'n', 'כלב משוטט':'me', 'איומים על נהג אוטובוס':'en', 'שוד בקיוסק':'en', 'חשד למעקב אחרי אישה':'en', 'תאונת עבודה באתר בנייה':'m'};
 const SHIFT_LEN = 420;          // real seconds
-const RING_LIMIT = 45;          // seconds before a caller gives up
+const RING_LIMIT = 60;          // seconds before a caller gives up
 
 /* ================= HELPERS ================= */
 const $ = s => document.querySelector(s);
@@ -920,8 +937,16 @@ function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.
 /* ================= AUDIO ================= */
 const A = {ctx:null, sound:true, voice:true, he:null, vf:null, vm:null};
 function initAudio(){
-  try{ if(!A.ctx){ const C = window.AudioContext || window.webkitAudioContext; if(C) A.ctx = new C(); } if(A.ctx && A.ctx.state==='suspended') A.ctx.resume(); }catch(e){}
+  try{
+    if(navigator.audioSession) navigator.audioSession.type = 'playback';       // iPhone: keep playing with the ringer switch on silent
+    if(!A.ctx){ const C = window.AudioContext || window.webkitAudioContext; if(C) A.ctx = new C(); }
+    if(A.ctx && A.ctx.state!=='running') A.ctx.resume();
+    if(A.ctx && !A.unlocked){ const b = A.ctx.createBuffer(1, 1, 22050), s = A.ctx.createBufferSource(); s.buffer = b; s.connect(A.ctx.destination); s.start(0); A.unlocked = true; }
+  }catch(e){}
 }
+// Phones suspend audio when the screen locks or another app takes over; any touch wakes it again.
+['pointerdown','touchend','keydown'].forEach(ev => document.addEventListener(ev, () => { try{ if(A.ctx && A.ctx.state!=='running') A.ctx.resume(); }catch(e){} }, {passive:true}));
+document.addEventListener('visibilitychange', () => { try{ if(!document.hidden && A.ctx && A.ctx.state!=='running') A.ctx.resume(); }catch(e){} });
 function tone(f, d, vol, type, delay, f2){
   if(!A.sound || !A.ctx) return;
   try{
@@ -971,7 +996,7 @@ function bedStop(silent){
   try{ const t = A.ctx.currentTime; b.out.gain.setValueAtTime(1, t); b.out.gain.linearRampToValueAtTime(0, t+0.06); b.nodes.forEach(n => n.stop(t+0.08)); }catch(e){}
   if(!silent){
     const end = b.unit ? clipBuf.__end : null;            // a unit signs off with the recorded walkie-talkie sound
-    if(end && end !== 'loading') playNow(end, 0.8); else { tone(1050, 0.09, 0.06, 'sine', 0.05); hiss(0.05, 0.04, 0.15); }
+    if(!playNow(end, 0.8)) { tone(1050, 0.09, 0.06, 'sine', 0.05); hiss(0.05, 0.04, 0.15); }
   }
 }
 // A transmission of a fixed length, for lines that are shown but not spoken.
@@ -984,21 +1009,25 @@ function radioTx(dur, siren, unit){
 // and is played before the arrival report of that unit only.
 const CLIPS = {arrive:'voice/a402.mp3', 'מרכז|נתניה|401':'voice/a401.mp3'};
 const clipBuf = {}; let clipChain = Promise.resolve();
-function playNow(buf, vol){ try{
-  if(buf.el){ buf.el.currentTime = 0; buf.el.volume = vol; const p = buf.el.play(); if(p && p.catch) p.catch(() => {}); return; }
-  const src = A.ctx.createBufferSource(), g = A.ctx.createGain(); src.buffer = buf; g.gain.value = vol; src.connect(g).connect(A.ctx.destination); src.start();
-}catch(e){} }
+function playNow(buf, vol, loop){ try{
+  if(!buf || buf === 'loading' || !A.ctx) return null;
+  const src = A.ctx.createBufferSource(), g = A.ctx.createGain(); src.buffer = buf; src.loop = !!loop; g.gain.value = vol;
+  src.connect(g).connect(A.ctx.destination); src.start(); return {src, g};
+}catch(e){ return null; } }
 function loadClips(){
   if(!A.ctx) return;
-  const files = Object.assign({__end:'voice/end.mp3'}, CLIPS);
+  const files = Object.assign({__end:'voice/end.mp3', __office:'voice/office.mp3'}, CLIPS);
+  Object.keys(CINE_SND).forEach(k => CINE_SND[k].forEach(x => { files[x[0]] = x[0]; }));
   Object.keys(files).forEach(k => { if(clipBuf[k]) return; clipBuf[k] = 'loading';
-    fetch(files[k]).then(r => r.arrayBuffer()).then(b => A.ctx.decodeAudioData(b)).then(buf => { clipBuf[k] = buf; })
-      .catch(() => { try{ const el = new Audio(files[k]); el.preload = 'auto'; clipBuf[k] = {el, duration:4}; }catch(e){ clipBuf[k] = null; } }); });   // if the file cannot be fetched, fall back to a plain audio element
+    fetch(files[k]).then(r => { if(!r.ok) throw 0; return r.arrayBuffer(); })
+      .then(b => new Promise((ok, no) => { const p = A.ctx.decodeAudioData(b, ok, no); if(p && p.then) p.then(ok, no); }))   // callback form too, for older phones
+      .then(buf => { clipBuf[k] = buf; if(k==='__office' && ambWant) ambience(true); })
+      .catch(() => { clipBuf[k] = null; }); });
 }
 function clipFor(name){ const b = name ? clipBuf[name] : null; return b && b !== 'loading' ? b : null; }
 function playClip(buf){                                     // one recorded clip at a time, in order
   const run = () => new Promise(res => { try{
-    if(buf.el){ buf.el.currentTime = 0; buf.el.onended = res; buf.el.onerror = res; const p = buf.el.play(); if(p && p.catch) p.catch(res); setTimeout(res, 5000); return; }
+    if(A.ctx.state!=='running') A.ctx.resume();
     const src = A.ctx.createBufferSource(), g = A.ctx.createGain(); src.buffer = buf; g.gain.value = 0.95;
     src.connect(g).connect(A.ctx.destination); src.onended = res; src.start(); setTimeout(res, buf.duration*1000 + 400);
   }catch(e){ res(); } });
@@ -1084,15 +1113,18 @@ function say(text, o){
 function hush(){ try{ if(window.speechSynthesis) speechSynthesis.cancel(); }catch(e){} A.pend = 0; bedStop(true); }
 
 // Quiet office noise under the whole shift, so the room feels staffed.
-let amb = null;
+let amb = null, ambWant = false;
 function ambience(on){
+  ambWant = !!on && A.sound;
   try{
-    if(on && A.sound){
-      if(!amb){ amb = new Audio('voice/office.mp3'); amb.loop = true; amb.preload = 'auto'; }
-      amb.volume = 0.14; const p = amb.play(); if(p && p.catch) p.catch(() => {});
-    } else if(amb) amb.pause();
-  }catch(e){}
+    if(ambWant){
+      if(amb) return;
+      const buf = clipBuf.__office; if(!buf || buf === 'loading') return;      // not downloaded yet: loadClips starts it when it arrives
+      amb = playNow(buf, 0.14, true);
+    } else if(amb){ amb.src.stop(); amb = null; }
+  }catch(e){ amb = null; }
 }
+function ambLevel(v){ try{ if(amb) amb.g.gain.value = v; }catch(e){} }
 
 /* ================= START SCREEN ================= */
 let selD = 0, selC = 0, selOp = 'm', selShift = 'e';
@@ -1209,6 +1241,7 @@ function tick(dt){
   }
   let ringing = false;
   for(const c of S.calls.slice()){
+    if(c.held) continue;                                    // a caller on hold stays on the line
     c.wait += dt; ringing = true;
     if(c.wait > RING_LIMIT){
       S.calls.splice(S.calls.indexOf(c),1);
@@ -1314,15 +1347,32 @@ function spawnCall(){
   S.ringT = 0; renderQueue();
 }
 function fill(c, txt){ return txt.replace(/\{st\}/g, stName(c.st)); }
-function answer(i){
-  if(S.active) return;
-  const c = S.calls.splice(i,1)[0]; if(!c) return;
-  S.active = c; c.answeredAt = S.t; hush(); sfx.pick();
-  c.base = S.shift.start*3600 + Math.floor(S.t / SHIFT_LEN * 28800); c.opened = fmtS(c.base); { const hi = 'משטרה שלום, ' + (S.op.g==='f' ? 'מדברת ' : 'מדבר ') + S.op.name + '.'; c.lines.push({who:'op', text:hi, ts:c.opened}); say(hi, {force:true, g:S.op.g, rate:1.08, pitch:S.op.g==='f' ? 1.1 : 0.95}); }
-  c.q = c.sc.o.map(t => ({who: t.charAt(0)==='(' ? 'fx' : 'caller', text:fill(c,t)}));
-  c.nextAt = S.t + (A.voice && A.he ? 2.4 : 0.6);
-  renderQueue(); renderCall();
+// Leaves the current call so another line can be answered: a call that already has forces on the way is closed, any other waits on hold.
+function leaveActive(){
+  const c = S.active; if(!c) return;
+  hush();
+  if(c.ending || (c.inc && S.incs.includes(c.inc))){ c.q = []; S.active = null; S.units.forEach(u => u.sel = false); return; }
+  c.held = true;                                            // the conversation picks up where it stopped
+  S.calls.unshift(c); S.active = null;
 }
+function answer(i){
+  const c = S.calls[i]; if(!c) return;
+  if(S.active) leaveActive();
+  S.calls.splice(S.calls.indexOf(c), 1);
+  S.active = c; hush(); sfx.pick();
+  if(c.held){                                               // back to a caller who was waiting on hold
+    c.held = false; c.q.unshift({who:'op', text:'תודה שהמתנת.'}); c.nextAt = S.t + 0.1;
+  } else {
+    c.answeredAt = S.t;
+    c.base = S.shift.start*3600 + Math.floor(S.t / SHIFT_LEN * 28800); c.opened = fmtS(c.base);
+    const hi = 'משטרה שלום, ' + (S.op.g==='f' ? 'מדברת ' : 'מדבר ') + S.op.name + '.';
+    c.lines.push({who:'op', text:hi, ts:c.opened}); say(hi, {force:true, g:S.op.g, rate:1.08, pitch:S.op.g==='f' ? 1.1 : 0.95});
+    c.q = c.sc.o.map(t => ({who: t.charAt(0)==='(' ? 'fx' : 'caller', text:fill(c,t)}));
+    c.nextAt = S.t + (A.voice && A.he ? 2.4 : 0.6);
+  }
+  renderQueue(); renderCall(); renderUnits();
+}
+function quickAnswer(){ if(!S || S.over || CINE) return; const i = S.calls.findIndex(c => !c.held); if(i >= 0) answer(i); }
 // What can be said right now: the address, this incident's own questions whose trigger was already heard, a few general ones, then instructions.
 function openQuestions(c){
   const f = c.sc.g==='f', sent = !!(c.inc && S.incs.includes(c.inc)), list = [], ins = [];
@@ -1440,9 +1490,8 @@ function relay(c, id){
 }
 function endCall(c){
   if(c.ending) return;
-  const t = c.inc ? (c.sc.g==='f' ? 'הכוחות בדרך אלייך. הישארי זמינה בטלפון.' : 'הכוחות בדרך אליך. הישאר זמין בטלפון.') : 'תודה, השיחה מסתיימת.';
-  c.q.push({who:'op', text:t}); c.ending = true;
-  if(c.nextAt < S.t) c.nextAt = S.t + 0.2;
+  hush(); c.q = [];                                          // nothing more from the caller once the dispatcher wraps up
+  c.q.push({who:'op', text:(c.sc.g==='f' ? 'גברתי' : 'אדוני') + ', ניידות בדרך.'}); c.ending = true; c.nextAt = S.t + 0.05;
   renderCall();
 }
 function closeCall(){ S.active = null; S.units.forEach(u => u.sel = false); renderCall(); renderUnits(); renderQueue(); }
@@ -1539,17 +1588,27 @@ function log(cls, who, text, score){
 
 /* ================= RENDER ================= */
 function renderQueue(){
-  const q = $('#queue');
+  const q = $('#queue'), ringing = S.calls.filter(c => !c.held);
   $('#qCount').textContent = S.calls.length ? S.calls.length + ' ממתינות' : '';
+  const qa = $('#quickAns');
+  if(ringing.length && !CINE){ qa.classList.remove('hidden'); qa.classList.toggle('hot', ringing[0].wait > RING_LIMIT*0.6);
+    $('#quickTxt').textContent = 'קו ' + ringing[0].line + ' מצלצל' + (ringing.length > 1 ? ' ועוד ' + (ringing.length-1) : ''); }
+  else qa.classList.add('hidden');
   if(!S.calls.length){ q.innerHTML = '<p class="empty">אין שיחות ממתינות.</p>'; return; }
   q.innerHTML = S.calls.map((c,i) => {
+    if(c.held) return `<div class="qrow held"><i class="led"></i><div class="qi"><b>קו ${c.line}</b><span>בהמתנה · ${esc(c.sc.g==='f' ? 'מתקשרת' : 'מתקשר')} על הקו</span></div>
+      <button type="button" data-ans="${i}">חזרה לשיחה</button></div>`;
     const w = Math.floor(c.wait), hot = c.wait > RING_LIMIT*0.6;
     return `<div class="qrow${hot?' hot':''}"><i class="led"></i><div class="qi"><b>קו ${c.line}</b>
       <span>ממתין ${w} שניות</span><div class="qbar"><i style="width:${Math.min(100, c.wait/RING_LIMIT*100).toFixed(0)}%"></i></div></div>
-      <button type="button" data-ans="${i}" ${S.active?'disabled':''}>מענה</button></div>`;
+      <button type="button" data-ans="${i}">מענה</button></div>`;
   }).join('');
 }
 $('#queue').addEventListener('click', e => { const b = e.target.closest('[data-ans]'); if(b) answer(+b.dataset.ans); });
+$('#quickAns').addEventListener('click', quickAnswer);
+document.addEventListener('keydown', e => {              // space or enter picks up the line that has waited longest
+  if((e.key===' ' || e.key==='Enter') && S && !S.over && !CINE && !/^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test((e.target.tagName||''))){ e.preventDefault(); quickAnswer(); }
+});
 
 function callDur(c){ const d = Math.max(0, Math.floor(S.t - c.answeredAt)); return String(Math.floor(d/60)).padStart(2,'0') + ':' + String(d%60).padStart(2,'0'); }
 // The questions or the instructions, whichever tab is open.
@@ -1802,15 +1861,14 @@ const CINE_FRAMES = {'תאונת דרכים עם נפגעים':['01',1,'crash'],
 // Recorded sound per scene: [file, seconds of lead-in before its loud moment ('start' = plays from the top of the scene), volume].
 const CINE_SND = {crash:[['sfx/crash.mp3',0.55,1],['sfx/crash-tail.mp3',0,0.45]], boom1:[['sfx/explode1.mp3',0.1,1]], boom2:[['sfx/explode2.mp3',0,1]],
   fire:[['sfx/fire.mp3','start',0.85]], pops:[['sfx/rifle.mp3',0.45,0.9]]};
-const cineSnd = {};
-function stopCineSnd(){ Object.keys(cineSnd).forEach(k => { try{ cineSnd[k].pause(); cineSnd[k].currentTime = 0; }catch(e){} }); }
+let cineSrc = [];
+function stopCineSnd(){ cineSrc.forEach(x => { try{ x.src.stop(); }catch(e){} }); cineSrc = []; }
 // City and shift versions of a storyboard. When the chosen city has one for the chosen shift it is used; otherwise the general one.
 const CINE_VAR = {'חיפה':{m:{'04':'haifa-m-04'}, e:{'05':'haifa-e-05'}, n:{'05':'haifa-n-05'}},
   'נתניה':{m:{'01':'netanya-m-01'}, e:{'03':'netanya-e-03'}, n:{'03':'netanya-n-03'}},
   'תל אביב-יפו':{m:{'02':'ta-m-02'}, e:{'06':'ta-e-06'}, n:{'06':'ta-n-06'}}};
 let cineImgs = {}, cineFor = '';
 function loadCineImgs(){
-  Object.keys(CINE_SND).forEach(k => CINE_SND[k].forEach(x => { if(!cineSnd[x[0]]) try{ const el = new Audio(x[0]); el.preload = 'auto'; cineSnd[x[0]] = el; }catch(e){} }));
   const city = DISTRICTS[selD].cities[selC].name, v = (CINE_VAR[city]||{})[selShift] || {};
   if(cineFor !== city + selShift){ cineFor = city + selShift; cineImgs = {}; }
   Object.keys(CINE_FRAMES).forEach(k => { if(cineImgs[k]) return; const id = v[CINE_FRAMES[k][0]] || CINE_FRAMES[k][0];
@@ -1825,8 +1883,8 @@ function drawFrames(c){
   const jolt = c.snd!=='fire' && c.snd!=='pops';
   (CINE_SND[c.snd]||[]).forEach((x, k) => {                // each recording starts early enough for its loud moment to land on the cut
     const at = x[1]==='start' ? 0.15 : Math.max(0, c.cue0*seg - x[1]);
-    if(t >= at && !c.cue['s'+k]){ c.cue['s'+k] = 1; const el = cineSnd[x[0]];
-      if(A.sound && el && !el.error){ try{ el.currentTime = 0; el.volume = x[2]; const p = el.play(); if(p && p.catch) p.catch(() => {}); }catch(e){} }
+    if(t >= at && !c.cue['s'+k]){ c.cue['s'+k] = 1; const h = A.sound ? playNow(clipBuf[x[0]], x[2]) : null;
+      if(h) cineSrc.push(h);
       else if(k===0) cineSound({crash:'crash', boom1:'boom', boom2:'boom', fire:'hit', pops:'pop'}[c.snd]); }
   });
   const hit = jolt && i===c.cue0 && lt < 0.45;
@@ -1862,8 +1920,8 @@ function startCine(o){
   const rnd2 = (a,b) => a + Math.random()*(b-a);
   for(let i=0;i<46;i++) CINE.parts.push({a:rnd2(0,6.28), v:rnd2(30,150), s:rnd2(1,3.4), d:rnd2(0,0.5), k:Math.random()});
   $('#cineK').textContent = o.kicker || 'אירוע חריג'; $('#cineT').textContent = o.title || ''; $('#cineS').textContent = o.sub || '';
-  $('#cineF').textContent = ''; el.classList.toggle('intro', !!o.intro); el.classList.remove('hidden');
-  if(amb && !o.intro) amb.volume = 0.04;
+  $('#cineF').textContent = ''; el.classList.toggle('intro', !!o.intro); el.classList.remove('hidden'); $('#quickAns').classList.add('hidden');
+  if(!o.intro) ambLevel(0.04);
   cvid.classList.add('hidden'); ccv.classList.remove('hidden');
   if(o.media){
     ccv.classList.add('hidden'); cvid.classList.remove('hidden'); cvid.loop = !!o.loop; cvid.src = o.media; cvid.currentTime = 0;
@@ -1876,7 +1934,7 @@ function sizeCine(){ const dpr = Math.min(2, window.devicePixelRatio||1), w = wi
 function endCine(){
   if(!CINE) return;
   const done = CINE.done; CINE = null; try{ cvid.pause(); }catch(e){} stopCineSnd();
-  $('#cine').classList.add('hidden'); lastT = performance.now(); if(amb) amb.volume = 0.14; if(done) done();
+  $('#cine').classList.add('hidden'); lastT = performance.now(); ambLevel(0.14); if(done) done();
 }
 $('#cineSkip').addEventListener('click', endCine);
 function cineTick(dt){
@@ -1985,7 +2043,7 @@ function drawCine(c){
 function gradeOf(a){ return a==null ? ['–','לא טופלו אירועים במשמרת'] : a>=90 ? ['מצטיין','אפשר לסמוך עליך בלילה עמוס'] : a>=80 ? ['טוב מאוד','משמרת יציבה, עוד קצת דיוק'] : a>=70 ? ['טוב','הסיווג טוב, אפשר לאסוף יותר מידע'] : a>=55 ? ['מספיק','שואלים יותר ושולחים מדויק יותר'] : ['נכשל','כדאי לחזור על הנהלים ולנסות שוב']; }
 function endShift(){
   if(CINE){ CINE.done = null; endCine(); }
-  S.over = true; cancelAnimationFrame(raf); hush(); ambience(false);
+  S.over = true; cancelAnimationFrame(raf); hush(); ambience(false); $('#quickAns').classList.add('hidden');
   const a = avg(), n = S.rec.length, g = gradeOf(a);
   const rows = S.rec.map(r => `<tr><td>${esc(r.title)}${r.note ? `<small>${esc(r.note)}</small>` : ''}</td><td>${r.score}</td></tr>`).join('');
   $('#endCard').innerHTML = `<div class="card-head"><h2>סיכום ${S.shift.name} · ${esc(S.city.name)}</h2><button type="button" class="x" id="btnClose" aria-label="סגירת הסיכום">✕</button></div>
