@@ -248,6 +248,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .xfer button{background:transparent;border:1px solid var(--line);border-radius:8px;padding:5px 2px;font-size:13px;color:var(--muted);white-space:nowrap}
 .xfer button b{color:var(--text);font-weight:700;margin-inline-end:4px}
 .xfer button:hover{border-color:var(--accent)}
+.endcall.send{border-color:#ff8a5c;color:#ffb08f}
 .endcall{width:100%;margin-top:6px;background:transparent;border:1px solid var(--ok);border-radius:8px;color:var(--ok);padding:7px;font-weight:700;font-size:15px}
 .endcall:hover{background:rgba(53,211,154,.12)}
 .endcall:disabled{opacity:.5;cursor:default}
@@ -589,7 +590,7 @@ html.compact-mode #quickAns span{flex:1}
       </div>
       <p class="voice-note" id="voiceNote"></p>
       <p class="voice-note" id="sndCheck" style="color:#ffd58a"></p>
-      <p class="voice-note" id="buildTag" style="opacity:.85;font-weight:700">גרסה 15.11 · 22:10</p>
+      <p class="voice-note" id="buildTag" style="opacity:.85;font-weight:700">גרסה 15.11 · 22:20</p>
     </section>
 
     <button class="go" id="btnStart">כניסה למשמרת</button>
@@ -1852,6 +1853,7 @@ function decide(act){
   const c = S.active; if(!c || c.ending) return;
   const sc = c.sc, crews = extList(c);
   if(act==='end'){ endCall(c); return; }
+  if(act==='endno' && crews.length) act = 't';               // crews marked and no unit: the crews go out on their own
   if(act==='u' || act==='r'){
     const sel = S.units.filter(u => u.sel && u.state==='free');
     if(!sel.length){ c.hint = 'קודם מסמנים כוח אחד לפחות בלוח הכוחות.'; renderCall(); return; }
@@ -2164,7 +2166,7 @@ function renderCall(){
         <button type="button" data-act="x" title="ניתוק שיחת סרק"><b>ניתוק</b><span>סרק</span></button>
         <button type="button" class="ref" data-act="ref" title="הפניה לתחנה: הגשת תלונה או מסירת מציאה"><b>לתחנה</b><span>תלונה</span></button>
       </div>
-      <button type="button" class="endcall" data-act="endno" ${c.ending?'disabled':''}>סיום שיחה, בלי ניידת</button>`}
+      <button type="button" class="endcall${extList(c).length ? ' send' : ''}" data-act="endno" ${c.ending?'disabled':''}>${extList(c).length ? 'שליחת ' + extList(c).map(k => EXT[k].n).join(' ו') + ' וסיום שיחה, בלי ניידת' : 'סיום שיחה, בלי ניידת'}</button>`}
       <p class="hint" role="status">${esc(c.hint||'')}</p>
     </div>`;
   const sc2 = box.querySelector('.call-scroll'); if(sc2) sc2.scrollTop = top;
@@ -2184,7 +2186,11 @@ $('#call').addEventListener('click', e => {
   const uc = e.target.closest('[data-uc]'); if(uc){ const u = S.units[+uc.dataset.uc]; if(u && u.state==='free'){ u.sel = !u.sel; if(S.active) S.active.hint = ''; renderUnits(); renderCall(); } return; }
   const tb = e.target.closest('[data-tab]'); if(tb && S.active){ S.active.tab = tb.dataset.tab; renderCall(); return; }
   const a = e.target.closest('[data-ask]'); if(a){ ask(a.dataset.ask); return; }
-  const x = e.target.closest('[data-ext]'); if(x && S.active){ const c = S.active, k = x.dataset.ext; if(c.inc && S.incs.includes(c.inc)) addCrew(c.inc, k); else c.ext[k] = !c.ext[k]; c.hint = ''; renderCall(); return; }
+  const x = e.target.closest('[data-ext]'); if(x && S.active){ const c = S.active, k = x.dataset.ext;
+    if(c.inc && S.incs.includes(c.inc)) addCrew(c.inc, k);       // forces already sent: the crew joins the incident at once
+    else if(k==='106'){ c.ext['106'] = true; decide('t'); return; }   // 106 before any dispatch: the caller is put through to the city hotline, and the call ends
+    else c.ext[k] = !c.ext[k];                                   // 101 / 102: marked to go out with the units, or alone with "שליחה וסיום"
+    c.hint = ''; renderCall(); return; }
   const d = e.target.closest('[data-act]'); if(d) decide(d.dataset.act);
 });
 
