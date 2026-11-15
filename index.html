@@ -579,7 +579,7 @@ html.compact-mode #quickAns span{flex:1}
         <button type="button" class="ghost" id="btnVoiceTest">השמעת דוגמה</button>
       </div>
       <p class="voice-note" id="voiceNote"></p>
-      <p class="voice-note" id="buildTag" style="opacity:.6">גרסה 15.11 · 18:15</p>
+      <p class="voice-note" id="buildTag" style="opacity:.6">גרסה 15.11 · 21:10</p>
     </section>
 
     <button class="go" id="btnStart">כניסה למשמרת</button>
@@ -1287,6 +1287,7 @@ const CLIPS = {};
   .forEach(id => CLIPS['rep|' + id] = 'voice/rep-' + id + '.mp3');   // the reports and crew requests, one recording for every station
 ['401','402','403','404','411','412','11'].forEach(cs => CLIPS['open|נתניה|' + cs] = 'voice/netanya-' + cs + '.mp3');   // Netanya station, recorded
 ['401','402','403','404','411','412','11'].forEach(cs => CLIPS['open|אביב|' + cs] = 'voice/telaviv-' + cs + '.mp3');    // Tel Aviv station, recorded
+['401','402','403','404','411','412','11'].forEach(cs => { CLIPS['open|פ״ת|' + cs] = 'voice/pt-' + cs + '.mp3'; CLIPS['open|ראשון|' + cs] = 'voice/rishon-' + cs + '.mp3'; });   // Petah Tikva and Rishon, recorded
 CLIPS['open|מרכז|יס״מ'] = 'voice/yasam-merkaz.mp3'; CLIPS['open|אביב|יס״מ'] = 'voice/yasam-aviv.mp3'; CLIPS['open|חוף|יס״מ'] = 'voice/yasam-hof.mp3';
 // Phone call openings: greet|op-m / op-f ("משטרה שלום"), greet|hello-m / -f ("הלו, משטרה?"), greet|help-m / -f ("משטרה? תעזרו לי!")
 ['op-m','hello-m','help-m'].forEach(k => CLIPS['greet|' + k] = 'voice/greet-' + k + '.mp3');
