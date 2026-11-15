@@ -97,6 +97,12 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 @media (max-width:480px){.ops{grid-template-columns:1fr}}
 .soon{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:10px;color:var(--muted);font-size:13px}
 .soon i{font-style:normal}
+.upick{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:6px 0 2px}
+.upick button{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;border:1px solid rgba(90,166,255,.25);background:rgba(10,24,48,.6);color:inherit;font:inherit;cursor:pointer;text-align:right;opacity:.6}
+.upick button[aria-pressed="true"]{opacity:1;border-color:#2fd6ff;background:rgba(25,70,130,.55);box-shadow:0 0 0 1px rgba(47,214,255,.35) inset}
+.upick .uimg{width:44px;height:26px;flex:none}
+.upick b{display:block;font-size:14px} .upick small{display:block;font-size:11.5px;opacity:.75;line-height:1.25}
+.upick .new{font-size:10px;font-weight:800;color:#0b1a30;background:#ffd24a;border-radius:4px;padding:0 4px;margin-inline-start:4px}
 .opts{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center}
 .opts label{display:flex;gap:8px;align-items:center}
 .opts input{width:18px;height:18px;accent-color:var(--brand)}
@@ -576,11 +582,6 @@ html.compact-mode #quickAns span{flex:1}
         <label for="optLevel">רמה
           <select id="optLevel"></select>
         </label>
-        <label for="optUnits">כוחות במשמרת
-          <select id="optUnits">
-            <option value="3">3 צוותים</option><option value="4">4 צוותים</option><option value="5" selected>5 צוותים</option><option value="6">6 צוותים</option><option value="7">7 צוותים</option><option value="8">8 צוותים</option>
-          </select>
-        </label>
         <label for="optMap">מפה
           <select id="optMap"><option value="real">מפה אמיתית (באינטרנט)</option><option value="hud">מפת חמ״ל מעוצבת</option></select>
         </label>
@@ -589,9 +590,12 @@ html.compact-mode #quickAns span{flex:1}
         <label for="optCine"><input type="checkbox" id="optCine" checked> קטעי מעבר</label>
         <button type="button" class="ghost" id="btnVoiceTest">השמעת דוגמה</button>
       </div>
+      <p class="step-label" style="margin-top:16px">כוחות במשמרת <span id="upCount" style="font-weight:400;opacity:.8"></span></p>
+      <div class="upick" id="unitPick"></div>
+      <p class="voice-note" id="upNote"></p>
       <p class="voice-note" id="voiceNote"></p>
       <p class="voice-note" id="sndCheck" style="color:#ffd58a"></p>
-      <p class="voice-note" id="buildTag" style="opacity:.85;font-weight:700">גרסה 15.11 · 22:55</p>
+      <p class="voice-note" id="buildTag" style="opacity:.85;font-weight:700">גרסה 15.11 · 23:20</p>
     </section>
 
     <button class="go" id="btnStart">כניסה למשמרת</button>
@@ -604,6 +608,7 @@ html.compact-mode #quickAns span{flex:1}
         <li>מסמנים כוחות ברשימה, ואם צריך גם מד״א, כיבוי או עירייה, ואז בוחרים נסיעה מבצעית או רגילה.</li>
         <li>בלוח ״אירועים פתוחים״ מוסיפים אמבולנס, כיבוי או עירייה לאירוע בכל רגע, גם בלי כוח נוסף וגם אחרי שהשיחה נסגרה. לתגבור מסמנים כוח פנוי ולוחצים ״תגבור״.</li>
         <li>אחרי השיגור הקו נשאר פתוח: אפשר להמשיך לשאול, לשלוח תגבור, ולסיים את השיחה כשמתאים. באירוע חריג שולחים שניים או שלושה כוחות.</li>
+        <li>ב״כוחות במשמרת״ בוחרים אילו צוותים יוצאים למשמרת. יחידה מתאימה לאירוע (תנועה לתאונה, כלבן לחפץ חשוד, בילוש לגניבה, מג״ב לקטטה) מקצרת את הטיפול, ואם הייתה לך יחידה כזו ולא שלחת אותה, יורדות נקודות. המסוק טס ישר ומהר, אבל אפשר לשלוח אותו לאירוע אחד בלבד במשמרת.</li>
         <li>קריאה שלא דורשת ניידת מעבירים לגורם המתאים או מסיימים ב״סיום שיחה, בלי ניידת״.</li>
         <li>באירוע חריג, כמו תאונה קשה, פיצוץ או ירי, מוצג קטע מעבר קצר ברגע השיגור. השעון עוצר בזמן הקטע, ואפשר לדלג עליו.</li>
         <li>הציון נקבע לפי סיווג, מספר הכוחות, הגורמים שהוזעקו, זמן ההגעה והמידע שנאסף.</li>
@@ -807,7 +812,7 @@ function makeCrew(d){
   const takeFace = (g, senior) => {
     const pools = senior ? [FACE[g+'o'], FACE[g], FACE[(g==='m'?'f':'m')+'o'], FACE[g==='m'?'f':'m']] : [FACE[g], FACE[g+'o'], FACE[g==='m'?'f':'m'], FACE[(g==='m'?'f':'m')+'o']];
     for(const pl of pools){ const free = pl.filter(n => !faceUsed.has(n)); if(free.length){ const n = pick(free); faceUsed.add(n); return {n, g: FACE.f.includes(n)||FACE.fo.includes(n) ? 'f' : 'm'}; } }
-    return {n:0, g};
+    const all = FACE[g].concat(FACE[g+'o']); return {n:pick(all), g};   // more people than faces: a face repeats
   };
   const who = (rank, role, senior) => {
     const f = takeFace(Math.random() < 0.6 ? 'm' : 'f', senior); let n, k = 0;
@@ -817,6 +822,11 @@ function makeCrew(d){
   if(d.cs==='11') return [who(pick(['פקד','מפקח','רפ״ק']),'קצין משמרת', true)];
   if(d.cs==='401') return [who(pick(['רס״ב','רס״מ']),'ראש משמרת סיור', true), who(pick(['רס״ל','סמ״ר']),'נהג')];
   if(d.cs==='402') return [who(pick(['רס״מ','רס״ל']),'סגן ראש משמרת'), who(pick(['סמ״ר','שוטר']),'נהג')];
+  if(d.spec==='traffic') return [who(pick(['רס״מ','רס״ל']),'מפקד ניידת תנועה'), who(pick(['סמ״ר','רס״ל']),'נהג')];
+  if(d.spec==='k9') return [who(pick(['רס״מ','רס״ב','רס״ל']),'כלבן · עם הכלב ' + pick(['רקס','זאוס','שאדו','לאקי','מקס','בלאק']))];
+  if(d.spec==='det') return [who(pick(['רס״מ','רס״ב']),'בלש, ראש הצוות'), who(pick(['רס״ל','רס״מ']),'בלש')];
+  if(d.spec==='mgb') return [who('רס״ב','מפקד הג׳יפ'), who(pick(['סמ״ר','רס״ל']),'לוחם'), who(pick(['סמ״ר','שוטר']),'לוחם')];
+  if(d.spec==='heli') return [who(pick(['פקד','רפ״ק']),'טייס', true), who(pick(['מפקח','פקד']),'טייס משנה')];
   if(/אופנוען/.test(d.type)) return [who(pick(['רס״ל','רס״מ','רס״ב']),'רוכב')];
   if(d.w===2) return [who('רס״ב','מפקד הצוות'), who('רס״מ','סגן'), who('רס״ל','לוחם'), who(pick(['סמ״ר','שוטר']),'לוחם')];
   return [who(pick(['רס״מ','רס״ל','רס״ב']),'מפקד הניידת'), who(pick(['שוטר','סמ״ר','רס״ל']),'נהג')];
@@ -830,8 +840,34 @@ const UNIT_DEFS = [
  {cs:'403', type:'סיור', speed:4.6, w:1, ord:2},
  {cs:'404', type:'סיור', speed:4.6, w:1, ord:3},
  {cs:'412', type:'אופנוען', speed:6.2, w:1, ord:5},
- {cs:'יס״מ', type:'צוות יס״מ, נחשב כשני כוחות', speed:4.6, w:2, ord:6}
+ {cs:'יס״מ', type:'צוות יס״מ, נחשב כשני כוחות', speed:4.6, w:2, ord:6},
+ {cs:'תנועה', type:'ניידת תנועה', speed:5, w:1, ord:7, kind:'traffic', spec:'traffic', blurb:'תאונות, נהגים שיכורים, צמתים'},
+ {cs:'כלבן', type:'יחידת כלבנים', speed:4.6, w:1, ord:8, kind:'k9', spec:'k9', blurb:'חפץ חשוד, נעדרים, סריקות'},
+ {cs:'בילוש', type:'צוות בילוש · רכב סמוי', speed:4.8, w:1, ord:9, kind:'det', spec:'det', blurb:'גניבות, הונאות, מעקב'},
+ {cs:'מג״ב', type:'ג׳יפ מג״ב', speed:4.4, w:1, ord:10, kind:'mgb', spec:'mgb', blurb:'קטטות, פיגועים, הפרות סדר'},
+ {cs:'מסוק', type:'מסוק משטרתי · פעם אחת במשמרת', speed:13, w:1, ord:11, kind:'heli', spec:'heli', air:true, blurb:'מהיר מאוד, טס ישר. אירוע אחד בלבד'}
 ];
+// Which special unit fits which incident. Sending one shortens the handling; leaving it at the station when you had it costs points.
+const SPEC_N = {traffic:'ניידת תנועה', k9:'יחידת כלבנים', det:'צוות בילוש', mgb:'מג״ב', heli:'מסוק'};
+const SPEC = {'תאונת דרכים עם נפגעים':['traffic'], 'חשד לנהג שיכור':['traffic'], 'פגע וברח':['traffic','heli'], 'אדם משוטט בכביש':['traffic'], 'רמזורים כבויים בצומת':['traffic'],
+  'חפץ חשוד':['k9'], 'התפרצות לדירה בזמן אמת':['k9','det'], 'ילד נעדר':['k9','heli'], 'קשיש נעדר':['k9','heli'],
+  'גניבת רכב':['det','heli'], 'הונאת קשישים, שליח בדרך':['det'], 'חשודים ליד רכבים חונים':['det'], 'גניבת אופניים חשמליים בזמן אמת':['det'], 'חשד למעקב אחרי אישה':['det'], 'שוד בקיוסק':['det','heli'],
+  'קטטה ברחוב':['mgb'], 'פיגוע ירי':['mgb','heli'], 'פיצוץ בתחנת אוטובוס':['mgb'], 'ירי':['heli','mgb'], 'ירי לעבר בית':['det'], 'השלכת רימון לעבר בית':['det']};
+const UPICK_DEF = ['401','11','402','403','404'];
+let upick;
+try{ upick = new Set(JSON.parse(localStorage.getItem('moked.units') || 'null') || UPICK_DEF); }catch(e){ upick = new Set(UPICK_DEF); }
+function renderUnitPick(){
+  const el = document.getElementById('unitPick'); if(!el) return;
+  el.innerHTML = UNIT_DEFS.slice().sort((a,b) => a.ord-b.ord).map(d => `<button type="button" data-up="${d.cs}" aria-pressed="${upick.has(d.cs)}">${UICON[d.kind || (d.w===2 ? 'van' : /אופנוען/.test(d.type) ? 'moto' : 'car')]}<span><b>${d.cs}${d.spec ? '<span class="new">חדש</span>' : ''}</b><small>${d.blurb || d.type}</small></span></button>`).join('');
+  document.getElementById('upCount').textContent = '· נבחרו ' + upick.size;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-up]'); if(!b) return;
+  const cs = b.dataset.up, note = document.getElementById('upNote');
+  if(upick.has(cs)){ if(upick.size <= 3){ note.textContent = 'צריך לפחות 3 צוותים במשמרת.'; return; } upick.delete(cs); } else upick.add(cs);
+  note.textContent = ''; try{ localStorage.setItem('moked.units', JSON.stringify([...upick])); }catch(e){}
+  renderUnitPick();
+});
 const EXT = {'101':{n:'מד״א', crew:'אמבולנס', ask:'מד״א'}, '102':{n:'כיבוי והצלה', crew:'צוות כיבוי', ask:'כיבוי'}, '106':{n:'מוקד עירוני', crew:'צוות עירייה', ask:'צוות עירייה'}};
 
 // pri: 1 urgent, 2 regular, 3 no unit (tgt = where it belongs). g = caller's gender. ext = outside crews the incident needs, opt = crews that are fine but not required.
@@ -1621,13 +1657,13 @@ function startShift(district, city){
   };
   { const typed = ($('#opName').value || '').trim().slice(0,12); S.op = {g:selOp, name: typed || pick(OPS[selOp])}; }
   S.graph = buildGraph(nodes);
-  const count = clamp(+$('#optUnits').value || 5, 3, UNIT_DEFS.length);
   const stIdx = Math.max(0, nodes.findIndex(n => n.st));
   const spots = shuffle([...nodes.keys()].filter(i => i!==stIdx));
   crewReset();
-  S.units = UNIT_DEFS.slice(0, count).sort((a,b) => a.ord-b.ord).map((d,i) => {
-    const ni = d.w===2 ? stIdx : spots[i % spots.length];
-    return {crew:makeCrew(d), cs:d.cs, type:d.type, kind: d.w===2 ? 'van' : /אופנוען/.test(d.type) ? 'moto' : 'car', ang:0, speed:d.speed, w:d.w, node:ni, x:nodes[ni].x, y:nodes[ni].y, state:'free', path:[], inc:null, sel:false, urgent:false};
+  const chosen = UNIT_DEFS.filter(d => upick.has(d.cs)); if(chosen.length < 3) UNIT_DEFS.filter(d => UPICK_DEF.includes(d.cs) && !upick.has(d.cs)).slice(0, 3 - chosen.length).forEach(d => chosen.push(d));
+  S.units = chosen.sort((a,b) => a.ord-b.ord).map((d,i) => {
+    const ni = d.w===2 || d.air ? stIdx : spots[i % spots.length];
+    return {crew:makeCrew(d), cs:d.cs, type:d.type, spec:d.spec, air:!!d.air, kind: d.kind || (d.w===2 ? 'van' : /אופנוען/.test(d.type) ? 'moto' : 'car'), ang:0, speed:d.speed, w:d.w, node:ni, x:nodes[ni].x, y:nodes[ni].y, state:'free', path:[], inc:null, sel:false, urgent:false};
   });
   for(let i=0;i<14;i++){ const a = Math.floor(Math.random()*nodes.length), b = pick([...S.graph.adj[a]]); S.civ.push({a, b, t:Math.random(), sp:rnd(1.6,2.6)}); }
   $('#hCity').textContent = city.name; $('#hDist').textContent = district.name + ' · ' + city.sub + ' · רמה ' + (S.lv+1);
@@ -1742,7 +1778,7 @@ const CHATTER = ['סיור שגרתי ב{h}, ללא חריגים.','בדיקת �
 function ambient(dt){
   // free units patrol slowly between neighbourhoods
   for(const u of S.units){
-    if(u.state!=='free') continue;
+    if(u.state!=='free' || u.air) continue;
     if(u.pp){ if(stepTo(u, u.pp, 1.3*dt)){ u.pp = null; u.idle = rnd(3,9); } }
     else {
       u.idle = (u.idle==null ? rnd(1,6) : u.idle) - dt;
@@ -1966,7 +2002,7 @@ function sendUnits(inc, units, urgent){
   units.forEach((u,i) => {
     u.state = 'enroute'; u.inc = inc; u.urgent = urgent; u.sel = false; u.pp = null;
     u.slot = inc.units.indexOf(u);
-    u.path = route(u.node, inc.ni).map(k => ({x:S.nodes[k].x, y:S.nodes[k].y})).concat([{x:inc.x + 3*Math.cos(u.slot*2.1), y:inc.y + 3*Math.sin(u.slot*2.1)}]);
+    u.path = u.air ? [] : route(u.node, inc.ni).map(k => ({x:S.nodes[k].x, y:S.nodes[k].y})).concat([{x:inc.x + 3*Math.cos(u.slot*2.1), y:inc.y + 3*Math.sin(u.slot*2.1)}]);
     u.node = inc.ni;
     setTimeout(() => { if(S && !S.over){
       const m = S.ctl + ' ' + rname(u) + (urgent ? ', קיבלתי. יוצא לאירוע בנסיעה מבצעית.' : ', קיבלתי. יוצא לאירוע.');
@@ -2073,11 +2109,14 @@ function arrive(u){
     log('radio', rname(u), m); radioSay(m, {u, siren: inc.urgent ? 'yelp' : null, rep: inc.hasAddr ? (S.op.g==='f' ? 'arrive-f' : 'arrive-m') : 'noaddr'});
     inc.sceneAt = inc.hasAddr ? S.t : S.t + 9;
     const n = inc.units.reduce((a,x) => a + x.w, 0), need = inc.sc.need||1;
-    inc.dur = inc.sc.pri===3 ? 8 : (inc.sc.dur||16) * (n < need ? 1.6 : 1);
+    inc.dur = inc.sc.pri===3 ? 8 : (inc.sc.dur||16) * (n < need ? 1.6 : 1) * (specSent(inc) ? 0.75 : 1);
     if(inc.sc.pri<3 && (inc.sc.ext||[]).length) inc.askAt = inc.sceneAt + 3;
   }
   renderUnits(); renderIncs();
 }
+// The special units this incident calls for, that this shift has, and whether one of them is on it.
+function specHave(sc){ return (SPEC[sc.t]||[]).filter(k => S.units.some(u => u.spec===k)); }
+function specSent(inc){ return inc.units.some(u => u.spec && (SPEC[inc.sc.t]||[]).includes(u.spec)); }
 function askForCrew(inc){
   inc.missing = (inc.sc.ext||[]).filter(k => !inc.crews.includes(k)); if(!inc.missing.length) return;
   inc.dur += 6;
@@ -2102,7 +2141,11 @@ function closeInc(inc){
     else if(sc.pri===1){ P('סוג נסיעה', 6, 20, 'האירוע דרש נסיעה מבצעית.'); notes.push('האירוע דרש נסיעה מבצעית.'); }
     else { P('סוג נסיעה', 13, 20, 'נסיעה רגילה הייתה מספיקה.'); notes.push('נסיעה רגילה הייתה מספיקה.'); }
     if(short){ P('כמות כוחות', 6, 20, 'נשלחו ' + n + ', נדרשו ' + need + '.'); notes.push('נדרשו ' + need + ' כוחות.'); }
-    else { const extra = n-need; P('כמות כוחות', Math.max(4, 20 - extra*7), 20, extra > 0 ? 'נשלחו ' + n + ', מספיקים ' + need + '.' : 'נשלחו ' + n + ' כוחות, כנדרש.'); if(extra>0) notes.push('נשלחו יותר כוחות מהנדרש.'); }
+    else { const extra = Math.max(0, n - need - (specSent(inc) ? 1 : 0));   // the special unit on top of the patrols is not counted as extra
+      P('כמות כוחות', Math.max(4, 20 - extra*7), 20, extra > 0 ? 'נשלחו ' + n + ', מספיקים ' + need + '.' : 'נשלחו ' + n + ' כוחות, כנדרש.'); if(extra>0) notes.push('נשלחו יותר כוחות מהנדרש.'); }
+    { const have = specHave(sc), cnt = parts.find(x => x.k==='כמות כוחות');
+      if(specSent(inc)){ const s2 = inc.units.find(u => u.spec && (SPEC[sc.t]||[]).includes(u.spec)); cnt.txt += ' נשלחה יחידה מתאימה: ' + SPEC_N[s2.spec] + '.'; }
+      else if(have.length){ cnt.got = Math.max(0, cnt.got - 6); const t = 'היה כדאי לשלוח ' + have.map(k => SPEC_N[k]).join(' או ') + '.'; cnt.txt += ' ' + t; notes.push(t); } }
     const req = sc.ext||[], okc = req.concat(sc.opt||[]);
     const missing = req.filter(k => !inc.crews.includes(k)), extraC = inc.crews.filter(k => !okc.includes(k));
     if(missing.length){ P('גורמי חוץ', 0, 10, 'לא הוזעק ' + missing.map(k => EXT[k].n).join(', ') + '.'); notes.push('לא הוזעק ' + missing.map(k => EXT[k].n).join(', ') + '.'); }
@@ -2123,7 +2166,7 @@ function closeInc(inc){
   const msg = S.ctl + ' ' + rname(lead) + ', ' + result + '. סיום טיפול.';
   log('radio', rname(lead), msg); radioSay(msg, {u:lead, rep:'done'});
   setTimeout(() => { if(S && !S.over) log('ops', S.ctl, rname(lead) + ' כאן ' + S.ctl + ', קיבלתי. סיום טיפול.'); }, 1200);
-  inc.units.forEach(u => { u.state = 'free'; u.inc = null; u.path = []; u.urgent = false; u.idle = rnd(3,8); });
+  inc.units.forEach(u => { u.state = u.air ? 'gone' : 'free'; u.inc = null; u.path = []; u.urgent = false; u.idle = rnd(3,8); u.sel = false; });
   REC_C = inc.c; record(sc.t, score, note, ok, parts);
   if(S.active === inc.c) closeCall();
   renderUnits();
@@ -2223,7 +2266,7 @@ function renderCall(){
     <div class="call-foot">
       <div class="exts">${Object.keys(EXT).map(k => `<button type="button" data-ext="${k}" aria-pressed="${sent ? c.inc.crews.includes(k) : !!c.ext[k]}"><b>${k}</b>${EXT[k].crew}</button>`).join('')}</div>
       <div class="chips-label"><span>${sent ? 'כוחות לתגבור' : 'בחירת כוחות'}</span><span>${S.units.filter(u => u.sel).length ? S.units.filter(u => u.sel).length + ' נבחרו' : S.units.filter(u => u.state==='free').length + ' זמינים'}</span></div>
-      <div class="chips">${S.units.map((u,i) => `<button type="button" class="chip ${u.state}" data-uc="${i}" aria-pressed="${u.sel}" ${u.state!=='free'?'disabled':''}><b>${u.cs}</b><span>${{free:'זמין', enroute:'בדרך', scene:'בזירה'}[u.state]}</span></button>`).join('')}</div>
+      <div class="chips">${S.units.map((u,i) => `<button type="button" class="chip ${u.state}" data-uc="${i}" aria-pressed="${u.sel}" ${u.state!=='free'?'disabled':''}><b>${u.cs}</b><span>${{free:'זמין', enroute:'בדרך', scene:'בזירה', gone:'לא זמין'}[u.state]}</span></button>`).join('')}</div>
       <div class="dec"><button type="button" class="u" data-act="u">${sent ? 'תגבור מבצעי' : 'שיגור מבצעי'}</button><button type="button" class="r" data-act="r">${sent ? 'תגבור רגיל' : 'שיגור רגיל'}</button></div>
       ${sent ? `<button type="button" class="endcall" data-act="end" ${c.ending?'disabled':''}>סיום שיחה · באירוע: ${esc(c.inc.units.map(u => u.cs).join(', '))}</button>` :
       `<p class="sub">בלי ניידת</p>
@@ -2265,8 +2308,14 @@ $('#call').addEventListener('click', e => {
 const UICON = {                                            // the forces board and unit card use Daniel's photos of a patrol car and a motorcyclist
   car:'<img class="uimg" src="img/unit-car.png" alt="" aria-hidden="true">',
   moto:'<img class="uimg moto" src="img/unit-moto.png" alt="" aria-hidden="true">',
-  van:'<img class="uimg" src="img/unit-van.png" alt="" aria-hidden="true">'
+  van:'<img class="uimg" src="img/unit-van.png" alt="" aria-hidden="true">',
+  traffic:'<img class="uimg" src="img/unit-car.png" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.5)) hue-rotate(160deg) saturate(1.6)" alt="" aria-hidden="true">',
+  k9:'<img class="uimg" src="img/unit-car.png" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.5)) hue-rotate(200deg) saturate(1.4)" alt="" aria-hidden="true">',
+  det:'<img class="uimg" src="img/unit-car.png" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.5)) grayscale(1) brightness(.62)" alt="" aria-hidden="true">',
+  mgb:'<img class="uimg" src="img/unit-van.png" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.5)) sepia(.8) hue-rotate(40deg) brightness(.75)" alt="" aria-hidden="true">',
+  heli:'<svg class="uimg" viewBox="0 0 64 36" aria-hidden="true"><rect x="2" y="9" width="60" height="2.4" rx="1.2" fill="#9fb3cc"/><rect x="31" y="10" width="2" height="5" fill="#9fb3cc"/><path d="M16 16h22c6 0 10 4 10 8s-4 6-10 6H20c-4 0-6-3-6-6v-2l-12-3v-3l14 1z" fill="#eef2f7"/><path d="M38 17c5 0 8 3 8.5 6H36v-6z" fill="#1d3550"/><rect x="18" y="21" width="16" height="2.4" fill="#1d4f9c"/><path d="M22 30v3M36 30v3M18 33h22" stroke="#9fb3cc" stroke-width="1.6"/><circle cx="27" cy="18" r="1.4" fill="#ff3b3b"/></svg>'
 };
+renderUnitPick();
 function renderIncs(){
   const box = $('#incs'); if(!box) return;
   $('#incCount').textContent = S.incs.length ? S.incs.length + ' פתוחים' : '';
@@ -2291,7 +2340,7 @@ $('#incs').addEventListener('click', e => {
 });
 function renderUnits(){
   if(S && S.active && compact && !renderUnits.busy){ renderUnits.busy = true; try{ renderCall(); }finally{ renderUnits.busy = false; } }
-  const lab = {free:'זמין', enroute:'בדרך', scene:'בזירה'};
+  const lab = {free:'זמין', enroute:'בדרך', scene:'בזירה', gone:'חזר לבסיס'};
   $('#units').innerHTML = S.units.map((u,i) =>
     `<button type="button" class="unit ${u.state}${u.state!=='free'?' busy':''}" data-u="${i}" aria-pressed="${u.sel}">
       ${UICON[u.kind]}<span class="cs">${u.cs}</span><span class="ty">${u.type} · ${esc(u.state!=='free' && u.inc ? u.inc.c.hood : S.nodes[u.node].n)}</span>
@@ -2311,11 +2360,11 @@ let cardU = null;
 function unitCard(u){
   const again = !!u && cardU === u && !$('#unitCard').classList.contains('hidden');   // a refresh of the open card does not replay the animation
   cardU = u; if(!u){ $('#unitCard').classList.add('hidden'); return; }
-  const lab = {free:'זמין', enroute:'בדרך לאירוע', scene:'בזירה'}, inc = u.inc, c = inc && inc.c;
+  const lab = {free:'זמין', enroute:'בדרך לאירוע', scene:'בזירה', gone:'חזר לבסיס'}, inc = u.inc, c = inc && inc.c;
   const eta = u.state==='enroute' ? Math.max(1, Math.round(pathLen(u) / (u.speed * (u.urgent?1:0.58)))) : 0;
   const where = u.state==='free' ? S.nodes[u.node].n : c ? c.hood : '';
   const ev = c ? `<div class="ev"><span class="no">אירוע ${c.no}</span> · ${esc(c.sc.t)}<br>${esc(addrText(c))}${eta ? '<br>הגעה משוערת בעוד ' + eta + ' שניות' + (u.urgent ? ' · נסיעה מבצעית' : '') : ''}${inc.units.length > 1 ? '<br>יחד עם ' + inc.units.filter(x => x!==u).map(x => esc(x.cs)).join(', ') : ''}</div>`
-    : `<div class="ev none">פנוי לשיגור · ${esc(where)}</div>`;
+    : u.state==='gone' ? `<div class="ev none">המסוק סיים את המשימה שלו במשמרת הזאת וחזר לבסיס.</div>` : `<div class="ev none">פנוי לשיגור · ${esc(where)}${u.air ? '<br>אפשר לשלוח אותו לאירוע אחד בלבד במשמרת.' : ''}</div>`;
   $('#ucBox').classList.toggle('still', again);
   $('#ucBox').innerHTML = (u.state==='enroute' && u.urgent ? '<div class="bar"></div>' : '') + `<div class="uch">${UICON[u.kind]}<div><b>${esc(u.cs)}</b><div class="t">${esc(u.type)} · ${esc(S.city.radio)}</div></div><span class="stx ${u.state}">${lab[u.state]}</span></div>
     <div class="ucb"><h4>צוות</h4><div class="crew">${u.crew.map(m => `<div><span class="av"${m.face ? ` style="background-image:url(img/crew/p${String(m.face).padStart(2,'0')}.jpg)"` : ''}>${m.face ? '' : esc(m.name.charAt(0))}</span><span class="rk">${m.rank}</span><span>${esc(m.name)}</span><span class="role">${esc(m.role)}</span></div>`).join('')}</div>
@@ -2331,7 +2380,7 @@ function releaseUnit(u){
   if(!canRelease(u)) return;
   const inc = u.inc; inc.units.splice(inc.units.indexOf(u), 1);
   let best = 0, bd = 1e9; S.nodes.forEach((n,i) => { const d = Math.hypot(n.x - u.x, n.y - u.y); if(d < bd){ bd = d; best = i; } });
-  u.state = 'free'; u.inc = null; u.path = []; u.urgent = false; u.sel = false; u.node = best;
+  u.state = u.air ? 'gone' : 'free'; u.inc = null; u.path = []; u.urgent = false; u.sel = false; u.node = best;
   inc.units.forEach((x,i) => x.slot = i);
   const m = rname(u) + ' כאן ' + S.ctl + ', השתחרר מהאירוע. חזור לסיור.';
   log('ops', S.ctl, m); radioSay(m, {g:S.op.g});
@@ -2514,6 +2563,7 @@ function draw(){
   for(const inc of S.incs) for(const v of (inc.veh||[])) vehicle(v.k, PX(v.x), PY(v.y), v.ang, true);
   S.units.forEach(u => {
     const x = PX(u.x), y = PY(u.y);
+    if(u.state==='gone') return;                                       // the helicopter is back at base
     const col = u.state==='free' ? '#35d39a' : u.state==='enroute' ? '#ffb53d' : '#ff5c66';
     if(u.sel){ cx.strokeStyle = '#2fd6ff'; cx.lineWidth = 2; cx.setLineDash([4,3]); cx.beginPath(); cx.arc(x,y,19,0,7); cx.stroke(); cx.setLineDash([]); }
     vehicle(u.kind, x, y, u.ang, u.urgent && u.state!=='free');
@@ -2537,6 +2587,16 @@ function vehicle(kind, x, y, ang, flash){
   cx.rotate(ang);
   if(kind==='civ'){
     cx.fillStyle = '#5d7396'; cx.fillRect(-4,-2,8,4); cx.fillStyle = '#ffe9a0'; cx.fillRect(3,-2,1,1); cx.fillRect(3,1,1,1);
+  } else if(kind==='heli'){
+    const air = S.units.some(u => u.kind==='heli' && u.state==='enroute');
+    cx.fillStyle = 'rgba(0,0,0,.3)'; cx.beginPath(); cx.ellipse(3,5,11,5,0,0,7); cx.fill();       // shadow on the ground
+    cx.fillStyle = '#eef2f7'; cx.beginPath(); cx.ellipse(2,0,9,5.5,0,0,7); cx.fill();
+    cx.fillRect(-16,-1.2,12,2.4); cx.fillRect(-17,-4,2,8);                                       // tail boom and fin
+    cx.fillStyle = '#1d3550'; cx.beginPath(); cx.ellipse(6,0,4,4,0,-1.4,1.4); cx.fill();         // canopy
+    cx.fillStyle = '#1d4f9c'; cx.fillRect(-3,-5.4,9,1.6); cx.fillRect(-3,3.8,9,1.6);
+    if(flash){ cx.fillStyle = on ? '#ff3b3b' : '#3b8bff'; cx.beginPath(); cx.arc(-1,0,1.6,0,7); cx.fill(); }
+    cx.save(); cx.rotate(S.t * (air ? 26 : 4)); cx.strokeStyle = 'rgba(210,225,245,.75)'; cx.lineWidth = 1.6;  // rotor
+    cx.beginPath(); cx.moveTo(-15,0); cx.lineTo(15,0); cx.moveTo(0,-15); cx.lineTo(0,15); cx.stroke(); cx.restore();
   } else if(kind==='moto'){
     cx.fillStyle = '#1a2330'; cx.fillRect(-9,-1.5,5,3); cx.fillRect(5,-1.5,5,3);          // wheels
     cx.fillStyle = '#eef2f7'; box(-6,-3,12,6,2.5); cx.fill();
@@ -2545,18 +2605,21 @@ function vehicle(kind, x, y, ang, flash){
     if(flash){ cx.fillStyle = on ? '#ff3b3b' : '#3b8bff'; cx.fillRect(5,-2.5,2,5); }
     cx.fillStyle = '#fff3b0'; cx.fillRect(7,-1,1.5,2);
   } else {
-    const big = kind==='van' || kind==='fire', L = big ? 28 : kind==='amb' ? 26 : 23, W = big ? 13 : 12;
-    const body = {car:'#f2f5f9', van:'#22324a', amb:'#f6f6f6', fire:'#c5362c', muni:'#e2b12a', civ2:'#8a97ab'}[kind];
+    const big = kind==='van' || kind==='fire' || kind==='mgb', L = big ? 28 : kind==='amb' ? 26 : 23, W = big ? 13 : 12;
+    const body = {car:'#f2f5f9', traffic:'#f2f5f9', k9:'#f2f5f9', det:'#5b6678', mgb:'#4a5536', van:'#22324a', amb:'#f6f6f6', fire:'#c5362c', muni:'#e2b12a', civ2:'#8a97ab'}[kind];
     cx.fillStyle = 'rgba(0,0,0,.35)'; box(-L/2+1,-W/2+2,L,W,3); cx.fill();                 // shadow
     cx.fillStyle = body; box(-L/2,-W/2,L,W,3); cx.fill();
     if(kind==='car'){ cx.fillStyle = '#1d4f9c'; cx.fillRect(-L/2+2,-W/2+1,L-11,2); cx.fillRect(-L/2+2,W/2-3,L-11,2); }
+    if(kind==='traffic'){ cx.fillStyle = '#c8e021'; cx.fillRect(-L/2+2,-W/2+1,L-11,2); cx.fillRect(-L/2+2,W/2-3,L-11,2); }
+    if(kind==='k9'){ cx.fillStyle = '#1d4f9c'; cx.fillRect(-L/2+2,-W/2+1,L-11,2); cx.fillRect(-L/2+2,W/2-3,L-11,2); cx.fillStyle = '#e07a1a'; cx.fillRect(-L/2+3,-1,6,2); }
+    if(kind==='mgb'){ cx.fillStyle = '#2f3822'; cx.fillRect(-L/2+3,-W/2+2,L-12,W-4); }
     if(kind==='van'){ cx.fillStyle = '#e9edf2'; cx.fillRect(-L/2+3,-1,L-12,2); }
     if(kind==='amb'){ cx.fillStyle = '#d63a30'; cx.fillRect(-L/2+3,-1,L-13,2); cx.fillRect(-5,-4,2,8); }
     if(kind==='fire'){ cx.fillStyle = '#e9edf2'; cx.fillRect(-L/2+3,-W/2+2,L-13,1.5); cx.fillRect(-L/2+3,W/2-3.5,L-13,1.5); }
     cx.fillStyle = '#0f1c2b'; cx.fillRect(L/2-8,-W/2+2,3.5,W-4);                             // windscreen
     cx.fillRect(-L/2+2.5,-W/2+2.5,2.5,W-5);                                                 // rear window
     cx.fillStyle = '#fff3b0'; cx.fillRect(L/2-1.5,-W/2+1.5,1.5,2.5); cx.fillRect(L/2-1.5,W/2-4,1.5,2.5);   // headlights
-    if(kind==='civ2'){ /* no light bar */ } else if(kind!=='muni'){                          // light bar across the roof
+    if(kind==='civ2' || (kind==='det' && !flash)){ /* no light bar: an unmarked car shows lights only on a run */ } else if(kind!=='muni'){                          // light bar across the roof
       const red = kind==='fire' || kind==='amb';
       cx.fillStyle = flash ? (on ? '#ff3b3b' : (red ? '#7a1f1a' : '#5a1616')) : '#7a2a2a'; cx.fillRect(-1,-W/2+1,3,W/2-1);
       cx.fillStyle = flash ? (on ? (red ? '#7a1f1a' : '#16305a') : (red ? '#ff3b3b' : '#3b8bff')) : (red ? '#7a2a2a' : '#27477a'); cx.fillRect(-1,0,3,W/2-1);
