@@ -184,6 +184,15 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 #game:not(.compact) .call-scroll > .transcript, #game.compact.land .call-scroll > .transcript{flex-shrink:1}
 #game:not(.compact) .call-scroll > .qs, #game.compact.land .call-scroll > .qs{flex-shrink:1}
 #game:not(.compact) #queuePanel:not(.has) .body{display:none}
+#askPanel.hidden, #game.compact #askPanel{display:none}
+#askPanel{flex:none;max-height:38%;border-color:rgba(90,166,255,.45)}
+#askPanel .body{padding:8px 12px 10px;overflow:auto;scrollbar-width:thin;scrollbar-color:#27467c transparent}
+#askPanel .tabs{margin:0 0 7px}
+#askPanel .qs{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px}
+#askPanel .qs button{font-size:14px;padding:7px 10px}
+#game:not(.compact) .call-scroll .transcript{max-height:none}
+#game:not(.compact) #callPanel{display:flex;flex-direction:column} #game:not(.compact) #call{flex:1;min-height:0;display:flex;flex-direction:column}
+#game:not(.compact) #call .call-scroll{flex:1;min-height:0}
 .call-foot{flex:none;padding:8px 14px 10px;background:linear-gradient(180deg,rgba(16,34,74,.0),rgba(16,34,74,.75));border-top:1px solid var(--line)}
 .callmeta{display:flex;gap:14px;align-items:center;font-size:12.5px;color:var(--muted);margin-bottom:8px;font-variant-numeric:tabular-nums}
 .rec{display:inline-flex;align-items:center;gap:6px;color:#ff8a92;font-weight:500}
@@ -580,7 +589,7 @@ html.compact-mode #quickAns span{flex:1}
       </div>
       <p class="voice-note" id="voiceNote"></p>
       <p class="voice-note" id="sndCheck" style="color:#ffd58a"></p>
-      <p class="voice-note" id="buildTag" style="opacity:.85;font-weight:700">גרסה 15.11 · 21:40</p>
+      <p class="voice-note" id="buildTag" style="opacity:.85;font-weight:700">גרסה 15.11 · 21:50</p>
     </section>
 
     <button class="go" id="btnStart">כניסה למשמרת</button>
@@ -636,6 +645,7 @@ html.compact-mode #quickAns span{flex:1}
         </h2>
         <div class="mapwrap"><div id="lmap"></div><div id="mapAttr">© OpenStreetMap contributors</div><canvas id="map" aria-label="מפת העיר עם מיקום הכוחות והאירועים"></canvas></div>
       </section>
+      <section class="panel hidden" id="askPanel" data-views="call" aria-label="שאלות והנחיות למתקשר"><div class="body" id="askBody"></div></section>
       <section class="panel" id="incPanel" data-views="map units">
         <h2><span>אירועים פתוחים</span><span id="incCount"></span></h2>
         <div class="body" id="incs"></div>
@@ -2125,18 +2135,21 @@ function renderCall(){
   const c = S.active, box = $('#call');
   $('#game').classList.toggle('busy', !!c);
   $('#callLine').textContent = (c ? 'קו ' + c.line + ' · ' : '') + (S.op.g==='f' ? 'מוקדנית ' : 'מוקדן ') + S.op.name;
-  if(!c){ box.innerHTML = '<div class="idle"><video class="idlevid" src="op-' + S.op.g + (compact && !land ? '-v' : '') + '.mp4" autoplay muted loop playsinline></video><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><b>המוקד מאזין</b><span>כשקו מצלצל, לוחצים על ״מענה״</span></div>'; return; }
+  if(!c){ $('#askPanel').classList.add('hidden'); box.innerHTML = '<div class="idle"><video class="idlevid" src="op-' + S.op.g + (compact && !land ? '-v' : '') + '.mp4" autoplay muted loop playsinline></video><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><b>המוקד מאזין</b><span>כשקו מצלצל, לוחצים על ״מענה״</span></div>'; return; }
   const names = {caller:'מתקשר', op:esc(S.op.name), fx:''};
   const tr = c.lines.map(l => `<div class="ln ${l.who}"><b>${names[l.who]}</b><span class="tx">${esc(l.text)}</span><time>${(l.ts||'').slice(3)}</time></div>`).join('');
   const exact = c.rev.addr && !c.sc.a, sent = !!(c.inc && S.incs.includes(c.inc));
   const t = tabList(c), nq = t.all.filter(q => !q.ins).length, ni = t.all.length - nq;
+  const qhtml = `<div class="tabs"><button type="button" data-tab="q" aria-pressed="${c.tab!=='i'}">שאלות<i>${nq}</i></button><button type="button" class="i" data-tab="i" aria-pressed="${c.tab==='i'}">הנחיות למתקשר<i>${ni}</i></button></div>
+      <div class="qs ${c.tab==='i'?'ins':''}">${t.list.length ? t.list.map((q,i) => `<button type="button" data-ask="${q.id}" class="${q.follow?'new':''}"><kbd>${i+1}</kbd><span>${esc(q.q)}</span></button>`).join('') : `<p class="empty">${c.tab==='i' ? 'אין הנחיות נוספות.' : 'אין שאלות נוספות.'}</p>`}</div>`;
+  const wideQs = !compact;                                   // on a computer the questions sit in a wide strip under the map
+  $('#askPanel').classList.toggle('hidden', !wideQs); if(wideQs) $('#askBody').innerHTML = qhtml;
   const keep = box.querySelector('.call-scroll'), top = keep ? keep.scrollTop : 0, ch = box.querySelector('.chips'), chx = ch ? ch.scrollLeft : 0, ft = box.querySelector('.call-foot'), fty = ft ? ft.scrollTop : 0;
   box.innerHTML = `<div class="call-scroll">
       <div class="callmeta"><span class="rec">מוקלט <span id="callTimer">${callDur(c)}</span></span><span>אירוע ${c.no}</span><span dir="ltr">${c.phone}</span></div>
       <div class="loc ${exact?'ok':'warn'}"><span>${exact ? 'כתובת מאומתת' : 'איכון משוער'}</span><b>${esc(exact ? addrText(c) : stName(c.st) + ', ' + c.hood)}</b></div>
       <div class="transcript" id="tr">${tr}${c.q.length ? '<span class="cursor"></span>' : ''}</div>
-      <div class="tabs"><button type="button" data-tab="q" aria-pressed="${c.tab!=='i'}">שאלות<i>${nq}</i></button><button type="button" class="i" data-tab="i" aria-pressed="${c.tab==='i'}">הנחיות למתקשר<i>${ni}</i></button></div>
-      <div class="qs ${c.tab==='i'?'ins':''}">${t.list.length ? t.list.map((q,i) => `<button type="button" data-ask="${q.id}" class="${q.follow?'new':''}"><kbd>${i+1}</kbd><span>${esc(q.q)}</span></button>`).join('') : `<p class="empty">${c.tab==='i' ? 'אין הנחיות נוספות.' : 'אין שאלות נוספות.'}</p>`}</div>
+      ${wideQs ? '' : qhtml}
     </div>
     <div class="call-foot">
       <div class="exts">${Object.keys(EXT).map(k => `<button type="button" data-ext="${k}" aria-pressed="${sent ? c.inc.crews.includes(k) : !!c.ext[k]}"><b>${k}</b>${EXT[k].crew}</button>`).join('')}</div>
@@ -2162,6 +2175,10 @@ document.addEventListener('keydown', e => {          // number keys ask the matc
   if(!S || S.over || !S.active || e.ctrlKey || e.metaKey || e.altKey) return;
   const n = +e.key; if(!(n >= 1 && n <= 9)) return;
   const q = tabList(S.active).list[n-1]; if(q){ e.preventDefault(); ask(q.id); }
+});
+$('#askPanel').addEventListener('click', e => {
+  const tb = e.target.closest('[data-tab]'); if(tb && S.active){ S.active.tab = tb.dataset.tab; renderCall(); return; }
+  const a = e.target.closest('[data-ask]'); if(a) ask(a.dataset.ask);
 });
 $('#call').addEventListener('click', e => {
   const uc = e.target.closest('[data-uc]'); if(uc){ const u = S.units[+uc.dataset.uc]; if(u && u.state==='free'){ u.sel = !u.sel; if(S.active) S.active.hint = ''; renderUnits(); renderCall(); } return; }
