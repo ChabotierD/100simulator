@@ -1273,7 +1273,9 @@ function radioTx(dur, siren, unit){
 // Station file names: netanya, kfarsaba, pt, rishon, telaviv, ramatgan, holon, haifa, hadera, zevulun. Units: 401 402 403 404 411 412 11.
 // The יס״מ goes by name alone, one opener per district: 'open|מרכז|יס״מ', 'open|אביב|יס״מ', 'open|חוף|יס״מ'.
 const STATION_FILE = {'נתניה':'netanya','סבא':'kfarsaba','פ״ת':'pt','ראשון':'rishon','אביב':'telaviv','גן':'ramatgan','חולון':'holon','חיפה':'haifa','חדרה':'hadera','זבולון':'zevulun'};
-const CLIPS = {'rep|arrive-f|מרכז':'voice/a402.mp3'};
+const CLIPS = {};
+['go-op','go','arrive-m','arrive-f','noaddr','scene','done','patrol','need-101','need-102','need-106','need-101-m','need-102-m','need-106-m']
+  .forEach(id => CLIPS['rep|' + id] = 'voice/rep-' + id + '.mp3');   // the reports and crew requests, one recording for every station
 ['401','402','403','404','411','412','11'].forEach(cs => CLIPS['open|נתניה|' + cs] = 'voice/netanya-' + cs + '.mp3');   // Netanya station, recorded
 ['401','402','403','404','411','412','11'].forEach(cs => CLIPS['open|סבא|' + cs] = 'voice/kfarsaba-' + cs + '.mp3');   // Kfar Saba station, recorded
 const clipBuf = {}; let clipChain = Promise.resolve();
@@ -1313,8 +1315,8 @@ function radioSay(text, o){
   const findRep = id => id && S ? (clipFor('rep|' + id + '|' + S.ctl) || clipFor('rep|' + id)) : null;
   const alt = o.rep ? ({'arrive-m':'arrive-f', 'arrive-f':'arrive-m'}[o.rep] || (/-m$/.test(o.rep) ? o.rep.slice(0,-2) : null)) : null;
   const clip = A.sound && A.ctx ? (findRep(o.rep) || findRep(alt)) : null;   // until both versions exist, one stands in for the other
-  if(clip){                                                 // the recorded report, on its own: no built-in voice on top of it
-    const opener = o.u && S ? clipFor(/^\d/.test(o.u.cs) ? 'open|' + S.city.radio + '|' + o.u.cs : 'open|' + S.ctl + '|' + o.u.cs) : null;   // the יס״מ opener is one per district
+  const opener = clip && o.u && S ? clipFor(/^\d/.test(o.u.cs) ? 'open|' + S.city.radio + '|' + o.u.cs : 'open|' + S.ctl + '|' + o.u.cs) : null;   // the יס״מ opener is one per district
+  if(clip && (opener || !o.u)){                             // recorded only when the unit's call-in is recorded too: never a report without who is talking
     const moto = isMoto(o.u); bedStart(o.siren, o.u || true); const mine = bed;
     if(opener){ playClip(opener, moto); clipChain = clipChain.then(() => new Promise(r => setTimeout(r, 450))); }   // the unit calls in, a beat, then the report
     playClip(clip, moto).then(() => { if(bed === mine) bedStop(); });
