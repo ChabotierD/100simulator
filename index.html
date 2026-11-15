@@ -579,7 +579,8 @@ html.compact-mode #quickAns span{flex:1}
         <button type="button" class="ghost" id="btnVoiceTest">השמעת דוגמה</button>
       </div>
       <p class="voice-note" id="voiceNote"></p>
-      <p class="voice-note" id="buildTag" style="opacity:.6">גרסה 15.11 · 21:25</p>
+      <p class="voice-note" id="sndCheck" style="color:#ffd58a"></p>
+      <p class="voice-note" id="buildTag" style="opacity:.85;font-weight:700">גרסה 15.11 · 21:30</p>
     </section>
 
     <button class="go" id="btnStart">כניסה למשמרת</button>
@@ -1522,6 +1523,15 @@ $('#btnVoiceTest').addEventListener('click', () => {
   const d = DISTRICTS[selD], c = d.cities[selC];
   say('שלום, אני חושבת שפרצו לשכנים שלי. תבואו מהר!', {force:true, g:'f', rate:1.05});
   loadClips(); radioSay(d.ctl + ' ' + c.radio + ' 401, קיבלתי. יוצא לאירוע בנסיעה מבצעית.', {siren:'wail', unit:true, rep:'go-op'});
+  // A plain check of every part of the sound, written under the button: what works on this device and what does not.
+  const t0 = Date.now(), chk = () => {
+    const ks = Object.keys(clipBuf), ok = ks.filter(k => clipFor(k)).length, bad = ks.filter(k => clipBuf[k] === null).length, wait = ks.length - ok - bad;
+    if(wait && Date.now() - t0 < 8000){ setTimeout(chk, 500); return; }
+    const st = !A.ctx ? 'אין תמיכה בצלילים' : A.ctx.state === 'running' ? 'פועלים' : 'חסומים (' + A.ctx.state + ')';
+    const vo = !window.speechSynthesis ? 'אין בדפדפן' : A.he ? 'עברית: ' + A.he.name : 'לא נמצא קול עברי';
+    $('#sndCheck').innerHTML = `<b>בדיקת סאונד</b> · צלילים: ${st} · הקלטות: ${ok} מתוך ${ks.length}${bad ? ` (${bad} לא נטענו)` : ''}${wait ? ` (${wait} עדיין נטענות)` : ''} · קול AI: ${vo}`;
+  };
+  setTimeout(chk, 1200);
 });
 $('#btnStart').addEventListener('click', () => {
   A.sound = $('#optSound').checked; A.voice = $('#optVoice').checked;
