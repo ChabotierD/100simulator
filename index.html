@@ -579,7 +579,7 @@ html.compact-mode #quickAns span{flex:1}
         <button type="button" class="ghost" id="btnVoiceTest">השמעת דוגמה</button>
       </div>
       <p class="voice-note" id="voiceNote"></p>
-      <p class="voice-note" id="buildTag" style="opacity:.6">גרסה 15.11 · 21:15</p>
+      <p class="voice-note" id="buildTag" style="opacity:.6">גרסה 15.11 · 21:25</p>
     </section>
 
     <button class="go" id="btnStart">כניסה למשמרת</button>
@@ -2454,19 +2454,22 @@ function vehicle(kind, x, y, ang, flash){
 // To use a real clip for an incident, add it here by incident title, e.g. 'תאונת דרכים עם נפגעים':'cine/crash.mp4'.
 const CINE_MEDIA = {};
 const CINE_TYPE = {'תאונת דרכים עם נפגעים':'crash','פיצוץ בתחנת אוטובוס':'blast-stop','פיצוץ רכב':'blast-car','פיצוץ בלון גז בדירה':'blast-flat','שריפה במחסן':'fire',
-  'ירי':'shots-moto','פיגוע ירי':'shots-walk','ירי לעבר בית':'shots-car','השלכת רימון לעבר בית':'grenade'};
+  'ירי':'shots-moto','פיגוע ירי':'shots-walk','ירי לעבר בית':'shots-car','השלכת רימון לעבר בית':'grenade','נפילת טיל בבניין':'blast-flat'};
 // Photo storyboards: four frames per incident, shown one after the other with a slow push-in. cue = [frame index where it happens, sound].
 const CINE_FRAMES = {'תאונת דרכים עם נפגעים':['01',1,'crash'],'פיצוץ בתחנת אוטובוס':['02',1,'boom1'],'פיצוץ רכב':['03',2,'boom1'],'פיצוץ בלון גז בדירה':['04',1,'boom2'],'שריפה במחסן':['05',2,'fire'],
-  'ירי':['06',1,'pops'],'פיגוע ירי':['07',1,'pops'],'ירי לעבר בית':['08',1,'pops'],'השלכת רימון לעבר בית':['09',2,'boom2']};
+  'ירי':['06',1,'pops'],'פיגוע ירי':['07',1,'pops'],'ירי לעבר בית':['08',1,'pops'],'השלכת רימון לעבר בית':['09',2,'boom2'],'נפילת טיל בבניין':['10',1,'missile']};
 // Recorded sound per scene: [file, seconds of lead-in before its loud moment ('start' = plays from the top of the scene), volume].
 const CINE_SND = {crash:[['sfx/crash.mp3',0.55,1],['sfx/crash-tail.mp3',0,0.45]], boom1:[['sfx/explode1.mp3',0.1,1]], boom2:[['sfx/explode2.mp3',0,1]],
-  fire:[['sfx/fire.mp3','start',0.85]], pops:[['sfx/rifle.mp3',0.45,0.9]]};
+  fire:[['sfx/fire.mp3','start',0.85]], pops:[['sfx/rifle.mp3',0.45,0.9]], missile:[['sfx/missile.mp3',0.5,1]]};
 let cineSrc = [];
 function stopCineSnd(){ cineSrc.forEach(x => { try{ x.src.stop(); }catch(e){} }); cineSrc = []; }
 // City and shift versions of a storyboard. When the chosen city has one for the chosen shift it is used; otherwise the general one.
 const CINE_VAR = {'חיפה':{m:{'04':'haifa-m-04'}, e:{'05':'haifa-e-05'}, n:{'05':'haifa-n-05'}},
   'נתניה':{m:{'01':'netanya-m-01'}, e:{'03':'netanya-e-03'}, n:{'03':'netanya-n-03'}},
   'תל אביב-יפו':{m:{'02':'ta-m-02'}, e:{'06':'ta-e-06'}, n:{'06':'ta-n-06'}}};
+// Rocket hit: one scene per city and shift (scene 10). Hadera and the Krayot use Haifa's.
+Object.entries({'נתניה':'netanya','כפר סבא':'kfarsaba','פתח תקווה':'pt','ראשון לציון':'rishon','תל אביב-יפו':'ta','חולון':'holon','רמת גן':'ramatgan','חיפה':'haifa','חדרה':'haifa','הקריות':'haifa'})
+  .forEach(([city, k]) => { CINE_VAR[city] = CINE_VAR[city] || {}; 'men'.split('').forEach(sh => { (CINE_VAR[city][sh] = CINE_VAR[city][sh] || {})['10'] = 'mis-' + k + '-' + sh; }); });
 let cineImgs = {}, cineFor = '';
 function loadCineImgs(){
   const city = DISTRICTS[selD].cities[selC].name, v = (CINE_VAR[city]||{})[selShift] || {};
