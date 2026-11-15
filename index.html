@@ -353,7 +353,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 #crewReq .k101{background:#d8202f} #crewReq .k102{background:#e0701a} #crewReq .k106{background:#2f7dff}
 #unitCard .ucnote{margin:8px 0 0;font-size:12px;color:var(--muted)}
 #unitCard .bar{height:4px;background:linear-gradient(90deg,#ff2b3d 0 50%,#2f7dff 50% 100%)}
-#unitCard .av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:13px;background:linear-gradient(160deg,#1d3d74,#0e1f3d);border:1px solid rgba(90,166,255,.4);color:#cfe1f8;flex:none}
+#unitCard .av{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:13px;background:linear-gradient(160deg,#1d3d74,#0e1f3d) center/cover no-repeat;border:1px solid rgba(90,166,255,.4);color:#cfe1f8;flex:none}
 #unitCard, #unitCard *{animation:none!important}   /* the card stays still */
 
 /* radio */
@@ -591,7 +591,7 @@ html.compact-mode #quickAns span{flex:1}
       </div>
       <p class="voice-note" id="voiceNote"></p>
       <p class="voice-note" id="sndCheck" style="color:#ffd58a"></p>
-      <p class="voice-note" id="buildTag" style="opacity:.85;font-weight:700">גרסה 15.11 · 22:50</p>
+      <p class="voice-note" id="buildTag" style="opacity:.85;font-weight:700">גרסה 15.11 · 22:55</p>
     </section>
 
     <button class="go" id="btnStart">כניסה למשמרת</button>
@@ -797,10 +797,25 @@ const DISTRICTS = [
 // Who sits in each unit: names and ranks. Patrols are NCOs (שוטר < סמ״ר < רס״ל < רס״מ < רס״ב); the shift officer "11" is the only officer.
 const FIRST = ['שי','יוסי','אבי','רועי','עמית','איתי','דור','אלון','מורן','שירן','נועה','עדי','ליאור','תומר','אסף','רז','גל','בן','יעל','מאיה','אוריה','אליה','דניאל','עומר','נתנאל','סהר','מיכל','חן'];
 const LAST = ['כהן','לוי','מזרחי','פרץ','ביטון','אברהם','פרידמן','אזולאי','דהן','חדד','גבאי','שפירא','בן דוד','אוחיון','קליין','עמר','יוסף','מלכה','רוזן','אלמוג','סעדה','נחום'];
+// Crew portraits (img/crew/pNN.jpg): each face appears once per shift, the name matches the face.
+const FACE = {f:[2,3,4,5,6,7,8,9], m:[10,12,13,14,15,18,19], fo:[1,11], mo:[16,17,20]};
+const NAME_M = ['יוסי','אבי','רועי','איתי','אלון','תומר','אסף','בן','דניאל','עומר','נתנאל','דור','שי','עמית','ליאור','גל'];
+const NAME_F = ['מורן','שירן','נועה','מאיה','יעל','מיכל','אוריה','עדי','ליאור','חן','סהר','גל','רז','שי'];
+let faceUsed = new Set(), nameUsed = new Set();
+function crewReset(){ faceUsed = new Set(); nameUsed = new Set(); }
 function makeCrew(d){
-  const used = new Set(), who = (rank, role) => { let n; do n = pick(FIRST) + ' ' + pick(LAST); while(used.has(n)); used.add(n); return {rank, name:n, role}; };
-  if(d.cs==='11') return [who(pick(['פקד','מפקח','רפ״ק']),'קצין משמרת')];
-  if(d.cs==='401') return [who(pick(['רס״ב','רס״מ']),'ראש משמרת סיור'), who(pick(['רס״ל','סמ״ר']),'נהג')];
+  const takeFace = (g, senior) => {
+    const pools = senior ? [FACE[g+'o'], FACE[g], FACE[(g==='m'?'f':'m')+'o'], FACE[g==='m'?'f':'m']] : [FACE[g], FACE[g+'o'], FACE[g==='m'?'f':'m'], FACE[(g==='m'?'f':'m')+'o']];
+    for(const pl of pools){ const free = pl.filter(n => !faceUsed.has(n)); if(free.length){ const n = pick(free); faceUsed.add(n); return {n, g: FACE.f.includes(n)||FACE.fo.includes(n) ? 'f' : 'm'}; } }
+    return {n:0, g};
+  };
+  const who = (rank, role, senior) => {
+    const f = takeFace(Math.random() < 0.6 ? 'm' : 'f', senior); let n, k = 0;
+    do n = pick(f.g==='f' ? NAME_F : NAME_M) + ' ' + pick(LAST); while(nameUsed.has(n) && ++k < 50); nameUsed.add(n);
+    return {rank, name:n, role, face:f.n};
+  };
+  if(d.cs==='11') return [who(pick(['פקד','מפקח','רפ״ק']),'קצין משמרת', true)];
+  if(d.cs==='401') return [who(pick(['רס״ב','רס״מ']),'ראש משמרת סיור', true), who(pick(['רס״ל','סמ״ר']),'נהג')];
   if(d.cs==='402') return [who(pick(['רס״מ','רס״ל']),'סגן ראש משמרת'), who(pick(['סמ״ר','שוטר']),'נהג')];
   if(/אופנוען/.test(d.type)) return [who(pick(['רס״ל','רס״מ','רס״ב']),'רוכב')];
   if(d.w===2) return [who('רס״ב','מפקד הצוות'), who('רס״מ','סגן'), who('רס״ל','לוחם'), who(pick(['סמ״ר','שוטר']),'לוחם')];
@@ -1609,6 +1624,7 @@ function startShift(district, city){
   const count = clamp(+$('#optUnits').value || 5, 3, UNIT_DEFS.length);
   const stIdx = Math.max(0, nodes.findIndex(n => n.st));
   const spots = shuffle([...nodes.keys()].filter(i => i!==stIdx));
+  crewReset();
   S.units = UNIT_DEFS.slice(0, count).sort((a,b) => a.ord-b.ord).map((d,i) => {
     const ni = d.w===2 ? stIdx : spots[i % spots.length];
     return {crew:makeCrew(d), cs:d.cs, type:d.type, kind: d.w===2 ? 'van' : /אופנוען/.test(d.type) ? 'moto' : 'car', ang:0, speed:d.speed, w:d.w, node:ni, x:nodes[ni].x, y:nodes[ni].y, state:'free', path:[], inc:null, sel:false, urgent:false};
@@ -2302,7 +2318,7 @@ function unitCard(u){
     : `<div class="ev none">פנוי לשיגור · ${esc(where)}</div>`;
   $('#ucBox').classList.toggle('still', again);
   $('#ucBox').innerHTML = (u.state==='enroute' && u.urgent ? '<div class="bar"></div>' : '') + `<div class="uch">${UICON[u.kind]}<div><b>${esc(u.cs)}</b><div class="t">${esc(u.type)} · ${esc(S.city.radio)}</div></div><span class="stx ${u.state}">${lab[u.state]}</span></div>
-    <div class="ucb"><h4>צוות</h4><div class="crew">${u.crew.map(m => `<div><span class="av">${esc(m.name.charAt(0))}</span><span class="rk">${m.rank}</span><span>${esc(m.name)}</span><span class="role">${esc(m.role)}</span></div>`).join('')}</div>
+    <div class="ucb"><h4>צוות</h4><div class="crew">${u.crew.map(m => `<div><span class="av"${m.face ? ` style="background-image:url(img/crew/p${String(m.face).padStart(2,'0')}.jpg)"` : ''}>${m.face ? '' : esc(m.name.charAt(0))}</span><span class="rk">${m.rank}</span><span>${esc(m.name)}</span><span class="role">${esc(m.role)}</span></div>`).join('')}</div>
     <h4>משימה</h4>${ev}
     <div class="uca">${u.state==='free' ? `<button type="button" class="pri" data-ucsel>${u.sel ? 'בטל סימון' : 'סמן לשיגור'}</button>` : ''}${canRelease(u) ? `<button type="button" class="rel" data-ucrel>שחרור מהאירוע</button>` : ''}<button type="button" data-ucx>סגור</button></div>
     ${u.inc && !canRelease(u) && u.inc.units.length===1 ? '<p class="ucnote">כוח יחיד באירוע. אי אפשר לשחרר אותו לפני סיום הטיפול.</p>' : ''}</div>`;
