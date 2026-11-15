@@ -579,7 +579,7 @@ html.compact-mode #quickAns span{flex:1}
         <button type="button" class="ghost" id="btnVoiceTest">השמעת דוגמה</button>
       </div>
       <p class="voice-note" id="voiceNote"></p>
-      <p class="voice-note" id="buildTag" style="opacity:.6">גרסה 15.11 · 15:25</p>
+      <p class="voice-note" id="buildTag" style="opacity:.6">גרסה 15.11 · 18:00</p>
     </section>
 
     <button class="go" id="btnStart">כניסה למשמרת</button>
@@ -1286,6 +1286,7 @@ const CLIPS = {};
 ['go-op','go','arrive-m','arrive-f','noaddr','scene','done','patrol','need-101','need-102','need-106','need-101-m','need-102-m','need-106-m']
   .forEach(id => CLIPS['rep|' + id] = 'voice/rep-' + id + '.mp3');   // the reports and crew requests, one recording for every station
 ['401','402','403','404','411','412','11'].forEach(cs => CLIPS['open|נתניה|' + cs] = 'voice/netanya-' + cs + '.mp3');   // Netanya station, recorded
+['401','402','403','404','411','412','11'].forEach(cs => CLIPS['open|אביב|' + cs] = 'voice/telaviv-' + cs + '.mp3');    // Tel Aviv station, recorded
 ['401','402','403','404','411','412','11'].forEach(cs => CLIPS['open|סבא|' + cs] = 'voice/kfarsaba-' + cs + '.mp3');   // Kfar Saba station, recorded
 const clipBuf = {}; let clipChain = Promise.resolve();
 function playNow(buf, vol, loop){ try{
