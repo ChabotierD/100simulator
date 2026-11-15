@@ -356,6 +356,14 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .lg.bad b{color:#ff7d86}
 .lg.good,.lg.bad{padding-inline-start:8px;border-inline-start:3px solid var(--ok)}
 .lg.bad{border-inline-start-color:var(--crit)}
+.lg.bc{padding-inline-start:8px;border-inline-start:3px solid #ffb53d;background:rgba(255,181,61,.06)} .lg.bc b{color:#ffcc66}
+#bcBox{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:57;width:min(560px,94vw);background:linear-gradient(180deg,#2b1f06,#171004);border:1px solid rgba(255,181,61,.7);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.6),0 0 22px rgba(255,181,61,.2);padding:10px 14px}
+#bcBox.hidden{display:none}
+#bcBox .bch{display:flex;align-items:center;gap:8px;margin-bottom:6px} #bcBox .bch b{font-size:14.5px;color:#ffd58a}
+#bcBox .bct{font-size:12.5px;color:#fff;background:rgba(255,181,61,.22);border-radius:999px;padding:1px 9px}
+#bcBox .bcdot{width:10px;height:10px;border-radius:50%;background:#ffb53d;box-shadow:0 0 10px #ffb53d;animation:pulse 1s steps(2) infinite}
+#bcBox .x{margin-inline-start:auto;background:none;border:0;color:var(--muted);font-size:15px;cursor:pointer}
+#bcBox p{margin:0;font-size:14.5px;line-height:1.55} #bcBox p b{color:#ffd58a}
 .lg .sc{float:left;font-weight:900;font-variant-numeric:tabular-nums}
 
 /* cinematics */
@@ -571,7 +579,7 @@ html.compact-mode #quickAns span{flex:1}
         <button type="button" class="ghost" id="btnVoiceTest">השמעת דוגמה</button>
       </div>
       <p class="voice-note" id="voiceNote"></p>
-      <p class="voice-note" id="buildTag" style="opacity:.6">גרסה 14.11 · 21:40</p>
+      <p class="voice-note" id="buildTag" style="opacity:.6">גרסה 15.11 · 15:15</p>
     </section>
 
     <button class="go" id="btnStart">כניסה למשמרת</button>
@@ -646,6 +654,7 @@ html.compact-mode #quickAns span{flex:1}
   </div>
   <div id="unitCard" class="hidden" role="dialog" aria-modal="true" aria-label="פרטי ניידת"><div class="uc" id="ucBox"></div></div>
 <div id="pauseBox" class="hidden" role="dialog" aria-label="המשמרת מושהית"><div class="pzc"><b>המשמרת מושהית</b><span>השעון, השיחות והניידות עומדים במקום</span><button type="button" id="btnResume">▶ המשך משמרת</button></div></div>
+<div id="bcBox" class="hidden" role="status" aria-live="polite"></div>
 <div id="crewReq" class="hidden" role="alertdialog" aria-live="assertive"></div>
 <nav id="tabbar" aria-label="מסכי המשחק">
     <button type="button" data-view="call" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z" fill="currentColor"/></svg><span>שיחות</span><i class="badge" id="bCall"></i></button>
@@ -1566,6 +1575,7 @@ function startShift(district, city){
   });
   for(let i=0;i<14;i++){ const a = Math.floor(Math.random()*nodes.length), b = pick([...S.graph.adj[a]]); S.civ.push({a, b, t:Math.random(), sp:rnd(1.6,2.6)}); }
   $('#hCity').textContent = city.name; $('#hDist').textContent = district.name + ' · ' + city.sub + ' · רמה ' + (S.lv+1);
+  S.bcq = []; S.bcLast = {}; S.tlmAt = Math.random() < [0.35,0.55,0.75,0.9][S.lv] ? SHIFT_LEN * rnd(0.3, 0.75) : 0;   // a rocket alert, some shifts
   RING_LIMIT = LV().ring; S.nextCall = S.lv === 0 ? 5 : 3; try{ localStorage.setItem('moked.lvlSel', String(S.lv)); }catch(e){}
   $('#mapTitle').textContent = 'מפת גזרה · ' + city.name;
   $('#netName').textContent = S.ctl + ' ⇄ ' + city.radio;
@@ -1596,6 +1606,9 @@ function tick(dt){
   S.t += dt;
   if(S.t >= SHIFT_LEN){ endShift(); return; }
 
+  const bq = S.bcq.findIndex(b => S.t >= b.at && !CINE);
+  if(bq >= 0) broadcast(S.bcq.splice(bq,1)[0].kind);
+  if(S.tlmAt && S.t >= S.tlmAt){ S.tlmAt = 0; broadcastSoon('tlm', 0); }
   if(S.t >= S.nextCall && S.calls.length < LV().max){
     spawnCall();
     S.nextCall = S.t + rnd(LV().gap[0], LV().gap[1]) - (S.t/SHIFT_LEN)*LV().gap[0]*0.35;
@@ -1846,10 +1859,41 @@ function sendUnits(inc, units, urgent){
     } }, 2600 + i*2200);
   });
 }
+// General broadcasts: the district control speaks to every unit at once.
+// 'tlm' comes now and then on its own; 'shoot' and 'terror' follow a dispatch to such an incident.
+// Recordings (when they exist): 'bc|open|<district>' says "ניידות מרכז, כאן מרכז", and 'bc|<kind>' is the body, the same in every district.
+const BCAST = {
+  tlm:    {title:'התרעת ירי תל״מ', text:'התקבלו התראות על ירי תל״מ בגזרת המחוז, בטווח זמן מיידי. כלל הניידות להתמגן בהתאם, תחת מחסות, ולדווח על כל אירוע חריג למשל״ט.'},
+  shoot:  {title:'חסימות אחר רכב נמלט', text:'בעקבות אירוע ירי בגזרת המחוז, על השוטרים לבצע חסימות אחר הרכב הנמלט. כלל הניידות להתמגן בהתאם ולדווח על כל אירוע חריג למשל״ט.'},
+  terror: {title:'מחסומים וסריקות אחר פיגוע', text:'בעקבות פיגוע בגזרת המחוז, על השוטרים לפרוס מחסומים ולבצע סריקות אחר הרכב או החשודים. כלל הניידות להתמגן בהתאם ולדווח על כל אירוע חריג למשל״ט.'}
+};
+const BC_AFTER = {'ירי':'shoot', 'ירי לעבר בית':'shoot', 'פיגוע ירי':'terror', 'פיצוץ בתחנת אוטובוס':'terror'};
+['מרכז','אביב','חוף'].forEach(d => CLIPS['bc|open|' + d] = 'voice/bc-open-' + {'מרכז':'merkaz','אביב':'aviv','חוף':'hof'}[d] + '.mp3');
+['tlm','shoot','terror'].forEach(k => CLIPS['bc|' + k] = 'voice/bc-' + k + '.mp3');
+function broadcastSoon(kind, after){
+  if(!S || S.over) return;
+  if(S.bcq.some(b => b.kind===kind) || (S.bcLast[kind] && S.t - S.bcLast[kind] < 150)) return;   // the same broadcast at most every 2.5 minutes
+  S.bcq.push({kind, at:S.t + after});
+}
+function broadcast(kind){
+  const b = BCAST[kind]; S.bcLast[kind] = S.t;
+  const head = 'ניידות ' + S.ctl + ', כאן ' + S.ctl + '.', full = head + ' ' + b.text;
+  log('bc', 'שידור כללי · ' + S.ctl, full);
+  const box = $('#bcBox');
+  box.innerHTML = `<div class="bch"><span class="bcdot"></span><b>שידור כללי · ${esc(S.ctl)}</b><span class="bct">${esc(b.title)}</span><button type="button" class="x" data-bcx aria-label="סגירה">✕</button></div><p><b>${esc(head)}</b> ${esc(b.text)}</p>`;
+  box.classList.remove('hidden'); clearTimeout(box._t); box._t = setTimeout(() => box.classList.add('hidden'), 16000);
+  try{ if(navigator.vibrate) navigator.vibrate([80,60,80]); }catch(e){}
+  const op = A.sound && A.ctx ? clipFor('bc|open|' + S.ctl) : null, body = op ? clipFor('bc|' + kind) : null;
+  if(op && body){ bedStart(null, true); const mine = bed; playClip(op); clipChain = clipChain.then(() => new Promise(r => setTimeout(r, 300))); playClip(body).then(() => { if(bed === mine) bedStop(); }); }
+  else radioSay(full.replace(/תל״מ/g, 'תלול מסלול').replace(/משל״ט/g, 'משלט'), {g:'f', rate:1.08});
+}
+document.addEventListener('click', e => { if(e.target.closest('[data-bcx]')) $('#bcBox').classList.add('hidden'); });
+
 function dispatch(c, units, urgent, crews){
   const inc = {c, sc:c.sc, urgent, units:units.slice(), crews:crews.slice(), x:c.x, y:c.y, ni:c.ni, t0:c.answeredAt - c.wait,
                hasAddr:!!c.rev.addr, arrivedAt:null, sceneAt:null, askAt:null, dur:0};
   S.incs.push(inc); c.inc = inc; c.liveAt = S.t + rnd(5,8);
+  if(BC_AFTER[c.sc.t]) broadcastSoon(BC_AFTER[c.sc.t], rnd(14,22));   // the district follows up with a general broadcast
   if(CINE_TYPE[c.sc.t] || CINE_MEDIA[c.sc.t]) startCine({type:CINE_TYPE[c.sc.t], media:CINE_MEDIA[c.sc.t], frames:cineFrames(c.sc.t), cue0:(CINE_FRAMES[c.sc.t]||[])[1], snd:(CINE_FRAMES[c.sc.t]||[])[2], dur:cineFrames(c.sc.t) ? 5.8 : 5.4, title:c.sc.t, sub:'', foot:'הכוחות בדרך'});     // kept clean: no street, city or hour, so one scene fits every city
   crews.forEach(k => spawnVeh(inc, k));
   const msg = unitNames(units) + ' כאן ' + S.ctl + '. ' + (c.sc.rad || c.sc.t) + ', ' + whereText(inc) + '. ' + (urgent ? 'נסיעה מבצעית.' : 'נסיעה רגילה.');
@@ -2607,7 +2651,7 @@ function drawCine(c){
 
 /* ================= END ================= */
 function gradeOf(a){ return a==null ? ['–','לא טופלו אירועים במשמרת'] : a>=90 ? ['מצטיין','אפשר לסמוך עליך בלילה עמוס'] : a>=80 ? ['טוב מאוד','משמרת יציבה, עוד קצת דיוק'] : a>=70 ? ['טוב','הסיווג טוב, אפשר לאסוף יותר מידע'] : a>=55 ? ['מספיק','שואלים יותר ושולחים מדויק יותר'] : ['נכשל','כדאי לחזור על הנהלים ולנסות שוב']; }
-function endShift(){ unitCard(null); $('#crewReq').classList.add('hidden'); CREW_INC = null;
+function endShift(){ unitCard(null); $('#crewReq').classList.add('hidden'); $('#bcBox').classList.add('hidden'); CREW_INC = null;
   if(CINE){ CINE.done = null; endCine(); }
   S.over = true; cancelAnimationFrame(raf); hush(); ambience(false); keepAwake(false); $('#quickAns').classList.add('hidden');
   const a = avg(), n = S.rec.length, g = gradeOf(a);
