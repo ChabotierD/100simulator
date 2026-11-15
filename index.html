@@ -579,7 +579,7 @@ html.compact-mode #quickAns span{flex:1}
         <button type="button" class="ghost" id="btnVoiceTest">השמעת דוגמה</button>
       </div>
       <p class="voice-note" id="voiceNote"></p>
-      <p class="voice-note" id="buildTag" style="opacity:.6">גרסה 15.11 · 18:00</p>
+      <p class="voice-note" id="buildTag" style="opacity:.6">גרסה 15.11 · 18:15</p>
     </section>
 
     <button class="go" id="btnStart">כניסה למשמרת</button>
@@ -1287,6 +1287,9 @@ const CLIPS = {};
   .forEach(id => CLIPS['rep|' + id] = 'voice/rep-' + id + '.mp3');   // the reports and crew requests, one recording for every station
 ['401','402','403','404','411','412','11'].forEach(cs => CLIPS['open|נתניה|' + cs] = 'voice/netanya-' + cs + '.mp3');   // Netanya station, recorded
 ['401','402','403','404','411','412','11'].forEach(cs => CLIPS['open|אביב|' + cs] = 'voice/telaviv-' + cs + '.mp3');    // Tel Aviv station, recorded
+CLIPS['open|מרכז|יס״מ'] = 'voice/yasam-merkaz.mp3'; CLIPS['open|אביב|יס״מ'] = 'voice/yasam-aviv.mp3'; CLIPS['open|חוף|יס״מ'] = 'voice/yasam-hof.mp3';
+// Phone call openings: greet|op-m / op-f ("משטרה שלום"), greet|hello-m / -f ("הלו, משטרה?"), greet|help-m / -f ("משטרה? תעזרו לי!")
+['op-m','hello-m','help-m'].forEach(k => CLIPS['greet|' + k] = 'voice/greet-' + k + '.mp3');
 ['401','402','403','404','411','412','11'].forEach(cs => CLIPS['open|סבא|' + cs] = 'voice/kfarsaba-' + cs + '.mp3');   // Kfar Saba station, recorded
 const clipBuf = {}; let clipChain = Promise.resolve();
 function playNow(buf, vol, loop){ try{
@@ -1637,7 +1640,11 @@ function tick(dt){
     const l = c.q.shift(); l.ts = fmtS(c.base + (S.t - c.answeredAt)); c.lines.push(l);
     c.nextAt = S.t + 0.35 + l.text.length*0.03;            // without a voice the text runs at reading pace
     const voice = A.voice && A.he;
-    if(voice && l.who==='caller'){                          // everything the caller says is heard: each line shows as its speech starts, and the next waits for it to end
+    if(l.clip){                                             // a recorded line of the caller: it plays after the operator's greeting, and the story waits for it
+      const mine = c; mine.nextAt = S.t + 3.5;
+      playClip(l.clip).then(() => { if(S && S.active===mine && mine.nextAt > S.t + 0.25) mine.nextAt = S.t + 0.25; });
+    }
+    else if(voice && l.who==='caller'){                     // everything the caller says is heard: each line shows as its speech starts, and the next waits for it to end
       const mine = c, go = () => { if(S && S.active===mine && mine.nextAt > S.t + 0.25) mine.nextAt = S.t + 0.25; };
       mine.nextAt = S.t + 1.4 + l.text.length*0.1;           // if the phone never says it ended, move on anyway
       const busy = window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending), o = {force:true, g:c.sc.g, rate:c.rate + 0.05, onend:go};
@@ -1758,9 +1765,13 @@ function answer(i){
     c.answeredAt = S.t; c.waitAns = c.wait;
     c.base = S.shift.start*3600 + Math.floor(S.t / SHIFT_LEN * 28800); c.opened = fmtS(c.base);
     const hi = 'משטרה שלום, ' + (S.op.g==='f' ? 'מדברת ' : 'מדבר ') + S.op.name + '.';
-    c.lines.push({who:'op', text:hi, ts:c.opened}); say(hi, {force:true, g:S.op.g, rate:1.08, pitch:S.op.g==='f' ? 1.1 : 0.95});
-    const hello = c.sc.pri===1 ? pick(['הלו? משטרה?! מהר!', 'משטרה? תעזרו לי!']) : pick(['הלו, משטרה?', 'שלום, משטרה?', 'הלו? זה משטרה?']);
-    c.q = [{who:'caller', text:hello, voiced:true}].concat(c.sc.o.map((t, i) => ({who: t.charAt(0)==='(' ? 'fx' : 'caller', text:fill(c,t), voiced:i===0})));
+    c.lines.push({who:'op', text:hi, ts:c.opened});
+    const opClip = A.sound && A.ctx ? clipFor('greet|op-' + S.op.g) : null;   // recorded "משטרה שלום"; the name stays on screen
+    if(opClip) playClip(opClip); else say(hi, {force:true, g:S.op.g, rate:1.08, pitch:S.op.g==='f' ? 1.1 : 0.95});
+    const g = c.sc.g, hk = c.sc.pri===1 ? 'help' : 'hello', hClip = A.sound && A.ctx ? clipFor('greet|' + hk + '-' + g) : null;
+    const hello = hClip ? (hk==='help' ? 'משטרה? תעזרו לי!' : 'הלו, משטרה?')
+      : c.sc.pri===1 ? pick(['הלו? משטרה?! מהר!', 'משטרה? תעזרו לי!']) : pick(['הלו, משטרה?', 'שלום, משטרה?', 'הלו? זה משטרה?']);
+    c.q = [{who:'caller', text:hello, voiced:true, clip:hClip}].concat(c.sc.o.map((t, i) => ({who: t.charAt(0)==='(' ? 'fx' : 'caller', text:fill(c,t), voiced:i===0})));
     c.nextAt = S.t + (A.voice && A.he ? 1.9 : 0.5);
   }
   if(compact) setView('call');
