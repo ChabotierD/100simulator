@@ -580,7 +580,7 @@ html.compact-mode #quickAns span{flex:1}
       </div>
       <p class="voice-note" id="voiceNote"></p>
       <p class="voice-note" id="sndCheck" style="color:#ffd58a"></p>
-      <p class="voice-note" id="buildTag" style="opacity:.85;font-weight:700">גרסה 15.11 · 21:30</p>
+      <p class="voice-note" id="buildTag" style="opacity:.85;font-weight:700">גרסה 15.11 · 21:40</p>
     </section>
 
     <button class="go" id="btnStart">כניסה למשמרת</button>
@@ -1664,11 +1664,12 @@ function tick(dt){
       const mine = c; mine.nextAt = S.t + 3.5;
       playClip(l.clip).then(() => { if(S && S.active===mine && mine.nextAt > S.t + 0.25) mine.nextAt = S.t + 0.25; });
     }
-    else if(voice && l.who==='caller'){                     // everything the caller says is heard: each line shows as its speech starts, and the next waits for it to end
-      const mine = c, go = () => { if(S && S.active===mine && mine.nextAt > S.t + 0.25) mine.nextAt = S.t + 0.25; };
-      mine.nextAt = S.t + 1.4 + l.text.length*0.1;           // if the phone never says it ended, move on anyway
-      const busy = window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending), o = {force:true, g:c.sc.g, rate:c.rate + 0.05, onend:go};
-      if(l.reveal!=null && busy){ hush(); setTimeout(() => say(l.text, o), 70); } else say(l.text, o);   // phones drop a line spoken in the same instant as a cancel
+    else if(voice && l.who==='caller'){
+      // The voice keeps up with the player: an answer is spoken at once and the next question cuts it off; the text never waits for the voice.
+      // Of the opening story only the first line is spoken for sure; the rest is spoken only if nothing else is being said.
+      const busy = window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending), o = {force:l.reveal!=null || !!l.voiced, g:c.sc.g, rate:c.rate + 0.15};
+      if(l.reveal!=null){ if(busy){ hush(); setTimeout(() => say(l.text, o), 70); } else say(l.text, o); }   // phones drop a line spoken in the same instant as a cancel
+      else if(l.voiced || !busy) say(l.text, o);
     }
     else if(voice && l.who==='op') say(l.text, {force:true, g:S.op.g, rate:1.12, pitch:S.op.g==='f' ? 1.1 : 0.95});
     if(l.reveal!=null){ c.rev[l.reveal] = true; c.fresh = l.reveal; relay(c, l.reveal); }
@@ -1930,7 +1931,7 @@ function dispatch(c, units, urgent, crews){
   const inc = {c, sc:c.sc, urgent, units:units.slice(), crews:crews.slice(), x:c.x, y:c.y, ni:c.ni, t0:c.answeredAt - c.wait,
                hasAddr:!!c.rev.addr, arrivedAt:null, sceneAt:null, askAt:null, dur:0};
   S.incs.push(inc); c.inc = inc; c.liveAt = S.t + rnd(5,8);
-  if(BC_AFTER[c.sc.t]) broadcastSoon(BC_AFTER[c.sc.t], rnd(14,22));   // the district follows up with a general broadcast
+  if(BC_AFTER[c.sc.t]) broadcastSoon(BC_AFTER[c.sc.t], rnd(6,9));   // the district follows up with a general broadcast
   if(CINE_TYPE[c.sc.t] || CINE_MEDIA[c.sc.t]) startCine({type:CINE_TYPE[c.sc.t], media:CINE_MEDIA[c.sc.t], frames:cineFrames(c.sc.t), cue0:(CINE_FRAMES[c.sc.t]||[])[1], snd:(CINE_FRAMES[c.sc.t]||[])[2], dur:cineFrames(c.sc.t) ? 5.8 : 5.4, title:c.sc.t, sub:'', foot:'הכוחות בדרך'});     // kept clean: no street, city or hour, so one scene fits every city
   crews.forEach(k => spawnVeh(inc, k));
   const msg = unitNames(units) + ' כאן ' + S.ctl + '. ' + (c.sc.rad || c.sc.t) + ', ' + whereText(inc) + '. ' + (urgent ? 'נסיעה מבצעית.' : 'נסיעה רגילה.');
