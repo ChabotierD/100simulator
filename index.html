@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>מוקד 100 סימולטור</title>
 <meta name="description" content="מוקד 100: סימולטור מוקד חירום. עונים לקריאות, שואלים את המתקשר ומשגרים ניידות. משחק עצמאי שאינו מוצר רשמי של משטרת ישראל.">
 <meta property="og:title" content="מוקד 100 סימולטור">
@@ -19,6 +19,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
+html{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+*{-webkit-tap-highlight-color:transparent}
+button,a,label,select,input,canvas,.panel{touch-action:manipulation}
+button{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+
 /* Layout idea: a game HUD built from the logo's world. Deep navy, blue light from one side and red from the other, brushed-metal frames with cut corners, one big glowing city map in the middle. */
 :root{
   color-scheme:dark;
@@ -106,6 +111,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .opts{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center}
 .opts label{display:flex;gap:8px;align-items:center}
 .opts input{width:18px;height:18px;accent-color:var(--brand)}
+@media (max-width:820px){input[type="text"],select,textarea{font-size:16px!important}}   /* iPhone zooms into any field under 16px */
 .opts select{background:var(--well);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
 .ghost{background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:7px 14px}
 .ghost:hover{border-color:var(--brand)}
@@ -179,16 +185,15 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 #call{display:flex;flex-direction:column;overflow:hidden;padding:0}
 .call-scroll{flex:1;min-height:0;overflow:auto;padding:10px 14px;scrollbar-width:thin;scrollbar-color:#27467c transparent}
 /* questions come first: the transcript takes what room is left (never under ~3 lines), the questions list scrolls only past that */
-#game:not(.compact) .call-scroll, #game.compact.land .call-scroll{display:flex;flex-direction:column;overflow:hidden}
-#game:not(.compact) .call-scroll .transcript, #game.compact.land .call-scroll .transcript{flex:1 1 60px;height:auto;min-height:58px;max-height:190px}
+.call-scroll{display:flex;flex-direction:column;overflow:hidden}
+.qwrap{display:contents}
+.call-scroll .callmeta, .call-scroll .loc, .call-scroll .tabs{flex-shrink:0}
+.call-scroll .transcript{flex:1 1 60px;height:auto;min-height:58px;max-height:190px}
 #game:not(.compact) .qs button{font-size:13px;padding:5px 8px}
 #game:not(.compact) .qs kbd{font-size:10.5px;padding:0 4px}
 #game:not(.compact) .callmeta{margin-bottom:5px}
 #game:not(.compact) .loc{padding:6px 10px;margin-bottom:6px}
-#game:not(.compact) .call-scroll .qs, #game.compact.land .call-scroll .qs{flex:0 1 auto;min-height:96px;overflow:auto;scrollbar-width:thin;scrollbar-color:#27467c transparent;padding-bottom:2px;align-content:start}
-#game:not(.compact) .call-scroll > *, #game.compact.land .call-scroll > *{flex-shrink:0}
-#game:not(.compact) .call-scroll > .transcript, #game.compact.land .call-scroll > .transcript{flex-shrink:1}
-#game:not(.compact) .call-scroll > .qs, #game.compact.land .call-scroll > .qs{flex-shrink:1}
+.call-scroll .qs{flex:0 1 auto;min-height:96px;overflow:auto;scrollbar-width:thin;scrollbar-color:#27467c transparent;padding-bottom:2px;align-content:start;overscroll-behavior:contain}
 #game:not(.compact) #queuePanel:not(.has) .body{display:none}
 #askPanel.hidden, #game.compact #askPanel{display:none}
 #askPanel{flex:none;max-height:38%;border-color:rgba(90,166,255,.45)}
@@ -374,6 +379,12 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .lg.good,.lg.bad{padding-inline-start:8px;border-inline-start:3px solid var(--ok)}
 .lg.bad{border-inline-start-color:var(--crit)}
 .lg.bc{padding-inline-start:8px;border-inline-start:3px solid #ffb53d;background:rgba(255,181,61,.06)} .lg.bc b{color:#ffcc66}
+/* extreme events (terror, rocket fire): a thin red frame that flashes around the whole screen */
+#alertFrame{position:fixed;inset:0;z-index:95;pointer-events:none;border:3px solid #ff2a36;box-shadow:inset 0 0 22px rgba(255,30,45,.55),inset 0 0 70px rgba(255,30,45,.18);animation:alertBlink .85s steps(1,end) infinite}
+#alertFrame.hidden{display:none}
+#alertTag{position:absolute;top:max(4px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);background:#ff2a36;color:#fff;font-weight:800;font-size:12px;letter-spacing:.3px;padding:2px 12px;border-radius:0 0 8px 8px;white-space:nowrap;box-shadow:0 0 14px rgba(255,30,45,.7)}
+@keyframes alertBlink{0%{opacity:1}55%{opacity:.18}}
+@media (prefers-reduced-motion:reduce){#alertFrame{animation:none}}
 #bcBox{position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:57;width:min(560px,94vw);background:linear-gradient(180deg,#2b1f06,#171004);border:1px solid rgba(255,181,61,.7);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.6),0 0 22px rgba(255,181,61,.2);padding:10px 14px}
 #bcBox.hidden{display:none}
 #bcBox .bch{display:flex;align-items:center;gap:8px;margin-bottom:6px} #bcBox .bch b{font-size:14.5px;color:#ffd58a}
@@ -475,7 +486,6 @@ html.compact-mode,html.compact-mode body{height:100%;overflow:hidden;overscroll-
 #game.compact #logPanel .body{max-height:none}
 #game.compact #call{flex:1 1 auto;min-height:0}
 #game.compact .call-scroll{padding:8px 10px}
-#game.compact .transcript{height:112px}
 #game.compact .callmeta{margin-bottom:6px}
 #game.compact .loc{padding:6px 10px;margin-bottom:6px}
 #game.compact .tabs{margin:8px 0 5px}
@@ -489,6 +499,56 @@ html.compact-mode,html.compact-mode body{height:100%;overflow:hidden;overscroll-
 #game.compact .hint:empty{display:none}
 #game.compact .endcall{margin-top:6px;padding:8px}
 #game.compact .xfer button{padding:7px 4px}
+/* phone, upright: the questions always keep real room. The transcript shrinks first, the waiting lines fold into one slim row,
+   and the buttons under the call are packed tighter. */
+#game.compact:not(.land) .call-scroll .transcript{flex:1 0 50px;height:50px;min-height:50px;max-height:none;padding:7px 10px}
+#game.compact:not(.land) .call-scroll .qs{flex:0 1 auto;min-height:92px;grid-template-columns:1fr 1fr;gap:5px}
+#game.compact:not(.land) .qs button{padding:7px 8px;font-size:13.5px;line-height:1.25;min-height:40px;align-items:center}
+#game.compact:not(.land) .qs kbd{display:none}
+#game.compact .callmeta{margin-bottom:4px;font-size:12px}
+#game.compact .callmeta span[dir]{display:none}
+#game.compact .loc{padding:5px 9px;margin-bottom:5px}
+#game.compact .loc b{font-size:14px}
+#game.compact .tabs{margin:6px 0 4px}
+#game.compact .tabs button{padding:4px 4px}
+#game.compact:not(.land) .chip{flex-direction:row;align-items:center;gap:6px;min-width:0;padding:7px 11px}
+#game.compact:not(.land) .chip span{font-size:0;width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
+#game.compact:not(.land) .chip.free span{color:var(--ok)}
+#game.compact .dupcall .lg{display:none}
+#game.compact:not(.land) .chips-label{display:none}
+#game.compact .call-foot .sub{display:none}
+#game.compact .exts button{padding:5px 4px}
+#game.compact .dec button{padding:9px 6px;font-size:15.5px}
+#game.compact .xfer{margin-top:6px}
+#game.compact .xfer button{padding:6px 2px;font-size:12.5px}
+#game.compact .endrow{display:grid;grid-template-columns:1fr 1.3fr;gap:6px;margin-top:6px}
+#game.compact .endrow button{margin:0;width:auto;padding:8px 4px;font-size:13px;line-height:1.2}
+#game.compact:not(.land).busy #queuePanel{display:none}
+html.compact-mode #quickAns.pill{right:auto;width:auto;padding:4px 6px 4px 10px;gap:7px;font-size:12.5px;border-radius:999px;justify-content:flex-start}
+html.compact-mode #quickAns.pill b{padding:3px 10px;font-size:12.5px}
+#game.compact:not(.land).busy #callPanel > h2{padding:7px 12px 5px}
+#game.compact .loc b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#game.compact.busy .qrow{margin:0 0 4px;padding:4px 8px}
+#game.compact.busy .qrow .qbar{display:none}
+#game.compact.busy .qrow button{padding:5px 14px}
+html.compact-mode #bcBox{top:calc(var(--hdr,52px) + 4px);padding:8px 11px}
+html.compact-mode #bcBox p{font-size:13.5px;line-height:1.4;margin:5px 0 0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+html.compact-mode #bcBox.open p{-webkit-line-clamp:unset;display:block}
+.exts .xs{display:none}
+@media (max-width:400px){ #game.compact .tabs .xl{display:none} #game.compact .exts .xl{display:none} #game.compact .exts .xs{display:inline} #game.compact .stat.score{display:none} }
+/* short phones (iPhone SE, mini): everything under the call a notch tighter, so the questions keep their room */
+@media (max-height:720px){
+  #game.compact:not(.land) .callmeta{display:none}
+  #game.compact:not(.land) .chip{padding:5px 10px}
+  #game.compact:not(.land) .dec button{padding:7px 6px;font-size:15px}
+  #game.compact:not(.land) .xfer button{padding:5px 2px}
+  #game.compact:not(.land) .endrow button{padding:6px 4px}
+  #game.compact:not(.land) .exts{margin-bottom:5px}
+  #game.compact:not(.land) .chips{margin-bottom:5px}
+  #game.compact:not(.land) .call-foot{padding:6px 10px}
+  #game.compact:not(.land) .call-scroll .qs{min-height:84px}
+  #game.compact:not(.land) .call-scroll .transcript{flex-basis:42px;height:42px;min-height:42px}
+}
 /* the forces, right inside the call: tap to pick, without leaving the screen */
 .chips{display:none}
 #game.compact .chips{display:flex;gap:6px;overflow-x:auto;margin:0 -2px 7px;padding:1px 2px 3px;scrollbar-width:none}
@@ -595,7 +655,7 @@ html.compact-mode #quickAns span{flex:1}
       <p class="voice-note" id="upNote"></p>
       <p class="voice-note" id="voiceNote"></p>
       <p class="voice-note" id="sndCheck" style="color:#ffd58a"></p>
-      <p class="voice-note" id="buildTag" style="opacity:.85;font-weight:700">גרסה 15.11 · 23:20</p>
+      <p class="voice-note" id="buildTag" style="opacity:.85;font-weight:700">גרסה 16.11 · 03:00</p>
     </section>
 
     <button class="go" id="btnStart">כניסה למשמרת</button>
@@ -626,7 +686,7 @@ html.compact-mode #quickAns span{flex:1}
     <div class="where"><span id="hCity"></span><small id="hDist"></small></div>
     <div class="stat"><span>שעה</span><b id="hClock">--:--</b></div>
     <div class="stat cnt"><span>אירועים שטופלו</span><b id="hCount">0</b></div>
-    <div class="stat"><span>ציון משמרת</span><b id="hScore">–</b></div>
+    <div class="stat score"><span>ציון משמרת</span><b id="hScore">–</b></div>
     <button class="tbtn pz" id="btnPause" aria-pressed="false" title="השהיה (P)" aria-label="השהיה">⏸<span class="lbl"> השהיה</span></button>
     <button class="tbtn" id="btnMute" aria-pressed="false">השתק</button>
     <button class="tbtn" id="btnEnd">סיום משמרת</button>
@@ -673,6 +733,7 @@ html.compact-mode #quickAns span{flex:1}
   <div id="unitCard" class="hidden" role="dialog" aria-modal="true" aria-label="פרטי ניידת"><div class="uc" id="ucBox"></div></div>
 <div id="pauseBox" class="hidden" role="dialog" aria-label="המשמרת מושהית"><div class="pzc"><b>המשמרת מושהית</b><span>השעון, השיחות והניידות עומדים במקום</span><button type="button" id="btnResume">▶ המשך משמרת</button></div></div>
 <div id="bcBox" class="hidden" role="status" aria-live="polite"></div>
+<div id="alertFrame" class="hidden" aria-hidden="true"><span id="alertTag"></span></div>
 <div id="crewReq" class="hidden" role="alertdialog" aria-live="assertive"></div>
 <nav id="tabbar" aria-label="מסכי המשחק">
     <button type="button" data-view="call" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z" fill="currentColor"/></svg><span>שיחות</span><i class="badge" id="bCall"></i></button>
@@ -1274,6 +1335,10 @@ function initAudio(){
     if(A.ctx && !A.unlocked){ const b = A.ctx.createBuffer(1, 1, 22050), s = A.ctx.createBufferSource(); s.buffer = b; s.connect(A.ctx.destination); s.start(0); A.unlocked = true; }
   }catch(e){}
 }
+// No zooming the game by accident: Safari ignores user-scalable=no, so pinch and double-tap are stopped here.
+['gesturestart','gesturechange','gestureend'].forEach(ev => document.addEventListener(ev, e => e.preventDefault(), {passive:false}));
+document.addEventListener('touchmove', e => { if(e.touches && e.touches.length > 1) e.preventDefault(); }, {passive:false});
+document.addEventListener('dblclick', e => e.preventDefault(), {passive:false});   // double-tap zoom itself is off through touch-action:manipulation
 // Phones suspend audio when the screen locks or another app takes over; any touch wakes it again.
 ['pointerdown','touchend','keydown'].forEach(ev => document.addEventListener(ev, () => { try{ if(A.ctx && A.ctx.state!=='running') A.ctx.resume(); }catch(e){} }, {passive:true}));
 document.addEventListener('visibilitychange', () => { try{ if(!document.hidden && A.ctx && A.ctx.state!=='running') A.ctx.resume(); }catch(e){} });
@@ -1305,7 +1370,7 @@ function noiseSrc(){
   const src = A.ctx.createBufferSource(); src.buffer = buf; src.loop = true; return src;
 }
 const isMoto = u => !!(u && typeof u === 'object' && u.type === 'אופנוען');
-function bedStart(siren, unit){
+function bedStart(siren, unit, maxMs){
   if(!A.sound || !A.ctx) return;
   bedStop(true);
   try{
@@ -1329,7 +1394,7 @@ function bedStart(siren, unit){
       o.connect(sf).connect(sg).connect(out); o.start(t); lfo.start(t); nodes.push(o, lfo);
     }
     tone(1750, 0.03, 0.05, 'square'); tone(1250, 0.03, 0.04, 'square', 0.035);              // key-up click
-    bed = {out, nodes, unit:!!unit, timer:setTimeout(() => bedStop(), 12000)};
+    bed = {out, nodes, unit:!!unit, timer:setTimeout(() => bedStop(), maxMs || 12000)};
   }catch(e){ bed = null; }
 }
 function bedStop(silent){
@@ -1343,7 +1408,7 @@ function bedStop(silent){
 }
 // A transmission of a fixed length, for lines that are shown but not spoken.
 function radioTx(dur, siren, unit){
-  if(!A.sound || !A.ctx || bed) return;
+  if(!A.sound || !A.ctx || bed || rqOn || A.bcOn) return;     // never over a voice, and never over a general broadcast
   bedStart(siren, unit); const mine = bed; setTimeout(() => { if(bed === mine) bedStop(); }, clamp(dur||1.4, 0.6, 7)*1000);
 }
 // ---- recorded radio voices.
@@ -1382,19 +1447,55 @@ function loadClips(){
       .catch(() => { clipBuf[k] = null; }); });
 }
 function clipFor(name){ const b = name ? clipBuf[name] : null; return b && b !== 'loading' ? b : null; }
-function playClip(buf, moto){                               // one recorded clip at a time, in order
-  const run = () => new Promise(res => { try{
+const wait = ms => new Promise(r => setTimeout(r, ms));
+// Plays one clip and resolves when it ends. The end is measured on the audio clock, so a pause (which suspends the clock) holds it.
+function clipP(buf, moto, vol, onSrc){
+  return new Promise(res => { try{
+    if(!buf || !A.ctx) return res();
     if(A.ctx.state!=='running') A.ctx.resume();
-    const src = A.ctx.createBufferSource(), g = A.ctx.createGain(); src.buffer = buf; g.gain.value = moto ? 1.15 : 0.95;
+    const src = A.ctx.createBufferSource(), g = A.ctx.createGain(); src.buffer = buf; g.gain.value = vol || (moto ? 1.15 : 0.95);
     if(moto){                                                 // inside a helmet: boxed-in and muffled, a little hollow
       const lp = A.ctx.createBiquadFilter(), pk = A.ctx.createBiquadFilter(), hp = A.ctx.createBiquadFilter();
       lp.type = 'lowpass'; lp.frequency.value = 1700; lp.Q.value = 0.9;
       pk.type = 'peaking'; pk.frequency.value = 650; pk.Q.value = 1.6; pk.gain.value = 7;
       hp.type = 'highpass'; hp.frequency.value = 320;
       src.connect(hp).connect(pk).connect(lp).connect(g).connect(A.ctx.destination);
-    } else src.connect(g).connect(A.ctx.destination); src.onended = res; src.start(); setTimeout(res, buf.duration*1000 + 400);
+    } else src.connect(g).connect(A.ctx.destination);
+    let done = false; const fin = () => { if(!done){ done = true; res(); } };
+    src.onended = fin; const t0 = A.ctx.currentTime; src.start(); if(onSrc) onSrc(src);
+    const poll = () => { if(done) return; if(A.ctx.currentTime - t0 >= buf.duration + 0.35) fin(); else setTimeout(poll, 250); };
+    setTimeout(poll, buf.duration*1000 + 300);
   }catch(e){ res(); } });
-  clipChain = clipChain.then(run); return clipChain;
+}
+// ---- the radio channel: one transmission at a time, in order. A report that waited too long is dropped, because its moment
+// has passed. A general broadcast goes to the front of the line, is never dropped, and nothing else is heard on the radio over it.
+const RQ = []; let rqOn = null;
+function radioPush(item){
+  item.at = performance.now();
+  return new Promise(res => {
+    item.res = res;
+    if(item.bc){ const k = RQ.findIndex(x => !x.bc); if(k < 0) RQ.push(item); else RQ.splice(k, 0, item); } else RQ.push(item);
+    radioPump();
+  });
+}
+function radioPump(){
+  if(rqOn || !RQ.length) return;
+  if(S && S.paused){ setTimeout(radioPump, 400); return; }
+  const it = RQ.shift();
+  if(!it.bc && (performance.now() - it.at > 12000 || !S || S.over)){ it.res(); radioPump(); return; }
+  rqOn = it; if(it.bc) A.bcOn = true;
+  let done = false;
+  const fin = () => { if(done) return; done = true; clearTimeout(guard); if(it.bc) A.bcOn = false; rqOn = null; it.res(); setTimeout(radioPump, it.bc ? 500 : 150); };
+  const guard = setTimeout(fin, (it.max || 20) * 1000);      // never stuck
+  try{ Promise.resolve(it.run()).then(fin, fin); }catch(e){ fin(); }
+}
+function radioClear(){ RQ.splice(0).forEach(it => it.res()); }
+// ---- the phone channel: the greeting and the caller's recorded lines. A clip belongs to its call, and is skipped if that call is no longer on the line.
+let phoneSrc = null;
+function phoneStop(){ try{ if(phoneSrc) phoneSrc.stop(); }catch(e){} phoneSrc = null; }
+function phoneClip(c, buf){
+  c.pc = (c.pc || Promise.resolve()).then(() => (S && S.active === c && !S.over && !A.bcOn) ? clipP(buf, false, 0.95, src => phoneSrc = src) : null);
+  return c.pc;
 }
 // A spoken transmission: the static and siren start when the voice starts and end when it ends.
 function radioSay(text, o){
@@ -1404,15 +1505,20 @@ function radioSay(text, o){
   const clip = A.sound && A.ctx ? (findRep(o.rep) || findRep(alt)) : null;   // until both versions exist, one stands in for the other
   const opener = clip && o.u && S ? clipFor(/^\d/.test(o.u.cs) ? 'open|' + S.city.radio + '|' + o.u.cs : 'open|' + S.ctl + '|' + o.u.cs) : null;   // the יס״מ opener is one per district
   if(clip && (opener || !o.u)){                             // recorded only when the unit's call-in is recorded too: never a report without who is talking
-    const moto = isMoto(o.u); bedStart(o.siren, o.u || true); const mine = bed;
-    if(opener){ playClip(opener, moto); clipChain = clipChain.then(() => new Promise(r => setTimeout(r, 450))); }   // the unit calls in, a beat, then the report
-    playClip(clip, moto).then(() => { if(bed === mine) bedStop(); });
+    const moto = isMoto(o.u);
+    radioPush({max:16, run: async () => {
+      bedStart(o.siren, o.u || true, 16000); const mine = bed;
+      if(opener){ await clipP(opener, moto); await wait(450); }   // the unit calls in, a beat, then the report
+      await clipP(clip, moto); if(bed === mine) bedStop();
+    }});
     return;
   }
   const can = A.voice && A.he && window.speechSynthesis && (A.pend||0) < 6;
   if(!can){ radioTx(txLen(text), o.siren, o.u || !!o.unit); return; }
   const n = o.u ? (parseInt(o.u.cs,10) || 7) : 0;                                        // each unit keeps its own voice pitch
-  say(text, {force:true, radio:true, unit:o.u || !!o.unit, bed:o.siren || 'plain', g:o.g || 'm', rate:o.rate || 1.15, pitch:o.pitch || (o.u ? 0.72 + (n%6)*0.045 : undefined)});
+  radioPush({max:4 + txLen(text)*1.8, run: () => new Promise(res => {
+    if(!say(text, {force:true, radio:true, unit:o.u || !!o.unit, bed:o.siren || 'plain', g:o.g || 'm', rate:o.rate || 1.15, pitch:o.pitch || (o.u ? 0.72 + (n%6)*0.045 : undefined), onend:res})) res();
+  })});
 }
 const txLen = text => 0.9 + text.length*0.062;
 const sfx = {
@@ -1466,13 +1572,13 @@ function spoken(text, radio){
 function say(text, o){
   o = o || {};
   if(A.voice && !A.he && window.speechSynthesis) loadVoices();   // Safari fills its voice list late: look again before giving up
-  if(!A.voice || !A.he || !window.speechSynthesis) return;
+  if(!A.voice || !A.he || !window.speechSynthesis) return false;
   const since = Date.now() - (A.hushAt || 0);
-  if(since < 140){ setTimeout(() => say(text, o), 140 - since); return; }   // Safari drops a line spoken right after a cancel
+  if(since < 140){ setTimeout(() => { if(!say(text, o) && o.onend) o.onend(); }, 140 - since); return true; }   // Safari drops a line spoken right after a cancel
   try{ if(speechSynthesis.paused) speechSynthesis.resume(); }catch(e){}
-  if(text.charAt(0) === '(') return;                       // stage directions are not spoken
+  if(text.charAt(0) === '(') return false;                 // stage directions are not spoken
   try{
-    if(!o.force && (speechSynthesis.speaking || speechSynthesis.pending)) return;
+    if(!o.force && (speechSynthesis.speaking || speechSynthesis.pending)) return false;
     const matched = o.g==='f' ? A.vf : o.g==='m' ? A.vm : null;
     const voice = matched || A.he;
     const base = o.pitch || (matched ? 1 : o.g==='f' ? 1.25 : o.g==='m' ? 0.8 : 1);
@@ -1491,9 +1597,11 @@ function say(text, o){
       u.volume = o.vol||1;
       speechSynthesis.speak(u);
     });
-  }catch(e){}
+    return clean.length > 0;
+  }catch(e){ return false; }
 }
-function hush(){ try{ if(window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)){ speechSynthesis.cancel(); A.hushAt = Date.now(); } }catch(e){} A.pend = 0; bedStop(true); }
+function hush(){ phoneStop(); if(A.bcOn){ A.pend = 0; return; }   // a general broadcast is never cut
+  try{ if(window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)){ speechSynthesis.cancel(); A.hushAt = Date.now(); } }catch(e){} A.pend = 0; bedStop(true); }
 
 // Quiet office noise under the whole shift, so the room feels staffed.
 let amb = null, ambWant = false;
@@ -1647,6 +1755,7 @@ function zoneOf(n, cx0, cy0){
   return (ns && ew ? ns + ' ' + ew : ns || ew || 'מרכז') + ' העיר';
 }
 function startShift(district, city){
+  radioClear(); A.bcOn = false; rqOn = null;
   const raw = city.nodes.map(a => ({n:a[0], x:a[1], y:a[2], s:a[3]||[], st:!!a[4]}));
   const mx = raw.reduce((a,n) => a + n.x, 0) / raw.length, my = raw.reduce((a,n) => a + n.y, 0) / raw.length;
   const nodes = raw.map(n => Object.assign(n, {hoodName:n.n, n: n.st ? 'מרכז העיר' : zoneOf(n, mx, my)}));
@@ -1696,11 +1805,18 @@ function frame(now){
 }
 function tick(dt){
   S.t += dt;
-  if(S.t >= SHIFT_LEN){ endShift(); return; }
+  if(S.t >= SHIFT_LEN){
+    const pend = S.bcq.length || A.bcOn || RQ.some(x => x.bc);
+    if(!pend || (S.endHold && performance.now() - S.endHold > 75000)){ endShift(); return; }
+    if(!S.endHold){ S.endHold = performance.now(); log('ops', S.ctl, 'המשמרת מסתיימת מיד אחרי השידור הכללי.'); }
+    S.t = SHIFT_LEN;
+    if(S.bcq.length && !CINE && !A.bcOn) broadcast(S.bcq.shift().kind);
+    return;
+  }
 
   const bq = S.bcq.findIndex(b => S.t >= b.at && !CINE);
   if(bq >= 0) broadcast(S.bcq.splice(bq,1)[0].kind);
-  if(S.tlmAt && S.t >= S.tlmAt){ S.tlmAt = 0; broadcastSoon('tlm', 0); }
+  if(S.tlmAt && S.t >= S.tlmAt){ S.tlmAt = 0; broadcastSoon('tlm', 0, true); }
   const eq = S.echoQ.findIndex(e => S.t >= e.at);
   if(eq >= 0 && S.calls.length < LV().max + 3) spawnEcho(S.echoQ.splice(eq,1)[0].from);
   if(S.t >= S.nextCall && S.calls.length < LV().max){
@@ -1725,10 +1841,10 @@ function tick(dt){
   if(c && c.q.length && S.t >= c.nextAt){
     const l = c.q.shift(); l.ts = fmtS(c.base + (S.t - c.answeredAt)); c.lines.push(l);
     c.nextAt = S.t + 0.35 + l.text.length*0.03;            // without a voice the text runs at reading pace
-    const voice = A.voice && A.he;
-    if(l.clip){                                             // a recorded line of the caller: it plays after the operator's greeting, and the story waits for it
+    const voice = A.voice && A.he && !A.bcOn;                // over a general broadcast the call goes on in text only
+    if(l.clip && !A.bcOn){                                             // a recorded line of the caller: it plays after the operator's greeting, and the story waits for it
       const mine = c; mine.nextAt = S.t + 3.5;
-      playClip(l.clip).then(() => { if(S && S.active===mine && mine.nextAt > S.t + 0.25) mine.nextAt = S.t + 0.25; });
+      phoneClip(mine, l.clip).then(() => { if(S && S.active===mine && mine.nextAt > S.t + 0.25) mine.nextAt = S.t + 0.25; });
     }
     else if(voice && l.who==='caller'){
       // The voice keeps up with the player: an answer is spoken at once and the next question cuts it off; the text never waits for the voice.
@@ -1764,7 +1880,7 @@ function tick(dt){
     if(inc.sceneAt!=null && S.t >= inc.sceneAt + inc.dur) closeInc(inc);
   }
   S.uiT -= dt;
-  if(S.uiT <= 0){ S.uiT = 0.5; renderQueue(); header(); if(S.incs.length && !$('#incs').matches(':hover')) renderIncs(); const ct = $('#callTimer'); if(ct && S.active) ct.textContent = callDur(S.active); }
+  if(S.uiT <= 0){ S.uiT = 0.5; renderQueue(); header(); if(S.incs.length) renderIncs(); const ct = $('#callTimer'); if(ct && S.active) ct.textContent = callDur(S.active); }
 }
 
 // Moves o toward p by dist map units, turning it to face the way it drives. Returns true on arrival.
@@ -1885,7 +2001,7 @@ function answer(i){
     const hi = 'משטרה שלום, ' + (S.op.g==='f' ? 'מדברת ' : 'מדבר ') + S.op.name + '.';
     c.lines.push({who:'op', text:hi, ts:c.opened});
     const opClip = A.sound && A.ctx ? clipFor('greet|op-' + S.op.g) : null;   // recorded "משטרה שלום"; the name stays on screen
-    if(opClip) playClip(opClip); else say(hi, {force:true, g:S.op.g, rate:1.08, pitch:S.op.g==='f' ? 1.1 : 0.95});
+    if(opClip) phoneClip(c, opClip); else if(!A.bcOn) say(hi, {force:true, g:S.op.g, rate:1.08, pitch:S.op.g==='f' ? 1.1 : 0.95});
     const g = c.sc.g, hk = c.sc.pri===1 ? 'help' : 'hello', hClip = A.sound && A.ctx ? clipFor('greet|' + hk + '-' + g) : null;
     const hello = hClip ? (hk==='help' ? 'משטרה? תעזרו לי!' : 'הלו, משטרה?')
       : c.sc.pri===1 ? pick(['הלו? משטרה?! מהר!', 'משטרה? תעזרו לי!']) : pick(['הלו, משטרה?', 'שלום, משטרה?', 'הלו? זה משטרה?']);
@@ -2022,24 +2138,43 @@ const BCAST = {
 const BC_AFTER = {'נפילת טיל בבניין':'tlm', 'ירי':'shoot', 'ירי לעבר בית':'shoot', 'פיגוע ירי':'terror', 'פיצוץ בתחנת אוטובוס':'bomb'};
 ['מרכז','אביב','חוף'].forEach(d => CLIPS['bc|open|' + d] = 'voice/bc-open-' + {'מרכז':'merkaz','אביב':'aviv','חוף':'hof'}[d] + '.mp3');
 ['tlm','shoot','terror','bomb'].forEach(k => CLIPS['bc|' + k] = 'voice/bc-' + k + '.mp3');
-function broadcastSoon(kind, after){
+function broadcastSoon(kind, after, random){
   if(!S || S.over) return;
-  if(S.bcq.some(b => b.kind===kind) || (S.bcLast[kind] && S.t - S.bcLast[kind] < 150)) return;   // the same broadcast at most every 2.5 minutes
+  if(S.bcq.some(b => b.kind===kind) || RQ.some(x => x.bc === kind) || (rqOn && rqOn.bc === kind)) return;     // already on its way
+  if(S.bcLast[kind] && S.t - S.bcLast[kind] < (random ? 150 : 40)) return;     // an incident always gets its broadcast; a random alert not twice in a row
   S.bcq.push({kind, at:S.t + after});
+}
+// Extreme events flash a red frame around the screen while the general broadcast is on the air (and at least 6 seconds).
+const ALERT_KINDS = {tlm:'התרעה · ירי תל״מ', terror:'פיגוע ירי', bomb:'פיגוע תופת'};
+let FLASH_ON = false;                                         // waits for Daniel's approval of the sketch
+function alertFlash(kind){
+  if(!FLASH_ON || !ALERT_KINDS[kind]) return;
+  const f = $('#alertFrame'); $('#alertTag').textContent = ALERT_KINDS[kind]; f.classList.remove('hidden');
+  clearTimeout(f._t); const t0 = performance.now();
+  const off = () => { if(A.bcOn && performance.now() - t0 < 70000) f._t = setTimeout(off, 500); else f.classList.add('hidden'); };
+  f._t = setTimeout(off, 6000);
 }
 function broadcast(kind){
   const b = BCAST[kind]; S.bcLast[kind] = S.t;
-  const head = 'ניידות ' + S.ctl + ', כאן ' + S.ctl + ' 100.', full = head + ' ' + b.text;
+  const head = 'ניידות ' + S.ctl + ', כאן ' + S.ctl + ' 100.', full = head + ' ' + b.text, ctl = S.ctl;
   log('bc', 'שידור כללי · ' + S.ctl, full);
   const box = $('#bcBox');
-  box.innerHTML = `<div class="bch"><span class="bcdot"></span><b>שידור כללי · ${esc(S.ctl)}</b><span class="bct">${esc(b.title)}</span><button type="button" class="x" data-bcx aria-label="סגירה">✕</button></div><p><b>${esc(head)}</b> ${esc(b.text)}</p>`;
-  box.classList.remove('hidden'); clearTimeout(box._t); box._t = setTimeout(() => box.classList.add('hidden'), 16000);
-  try{ if(navigator.vibrate) navigator.vibrate([80,60,80]); }catch(e){}
-  const op = A.sound && A.ctx ? clipFor('bc|open|' + S.ctl) : null, body = op ? clipFor('bc|' + kind) : null;
-  if(op && body){ bedStart(null, true); const mine = bed; playClip(op); clipChain = clipChain.then(() => new Promise(r => setTimeout(r, 300))); playClip(body).then(() => { if(bed === mine) bedStop(); }); }
-  else radioSay(full.replace(/תל״מ/g, 'תלול מסלול').replace(/משל״ט/g, 'משלט'), {g:'f', rate:1.08});
+  const show = () => {
+    box.innerHTML = `<div class="bch"><span class="bcdot"></span><b>שידור כללי · ${esc(ctl)}</b><span class="bct">${esc(b.title)}</span><button type="button" class="x" data-bcx aria-label="סגירה">✕</button></div><p><b>${esc(head)}</b> ${esc(b.text)}</p>`;
+    box.classList.remove('hidden', 'open'); clearTimeout(box._t);
+    try{ if(navigator.vibrate) navigator.vibrate([80,60,80]); }catch(e){}
+  };
+  show(); alertFlash(kind);
+  radioPush({bc:kind, max:70, run: async () => {
+    for(let k = 0; k < 20 && window.speechSynthesis && speechSynthesis.speaking; k++) await wait(200);   // let the caller finish the sentence
+    show(); box.classList.add('onair');
+    const op = A.sound && A.ctx ? clipFor('bc|open|' + ctl) : null, body = op ? clipFor('bc|' + kind) : null;
+    if(op && body){ bedStart(null, true, 70000); const mine = bed; await clipP(op); await wait(300); await clipP(body); if(bed === mine) bedStop(); }
+    else await new Promise(res => { if(!say(full.replace(/תל״מ/g, 'תלול מסלול').replace(/משל״ט/g, 'משלט'), {force:true, radio:true, unit:true, bed:'plain', g:'f', rate:1.08, onend:res})) setTimeout(res, txLen(full)*1000); });
+    box.classList.remove('onair'); clearTimeout(box._t); box._t = setTimeout(() => box.classList.add('hidden'), 5000);
+  }});
 }
-document.addEventListener('click', e => { if(e.target.closest('[data-bcx]')) $('#bcBox').classList.add('hidden'); });
+document.addEventListener('click', e => { if(e.target.closest('[data-bcx]')) $('#bcBox').classList.add('hidden'); else if(e.target.closest('#bcBox')) $('#bcBox').classList.toggle('open'); });   // on a phone the text is folded to 3 lines; a tap opens it
 
 function dispatch(c, units, urgent, crews){
   const inc = {c, sc:c.sc, urgent, units:units.slice(), crews:crews.slice(), x:c.x, y:c.y, ni:c.ni, t0:c.answeredAt - c.wait,
@@ -2216,23 +2351,32 @@ function log(cls, who, text, score){
 }
 
 /* ================= RENDER ================= */
+// Writes HTML into an element only when it changed. On a phone, replacing a button between the finger going down and up
+// swallows the tap, so the screens are never rebuilt just because a timer ticked.
+function patch(el, html){ if(el && el._h !== html){ el.innerHTML = html; el._h = html; return true; } return false; }
 function renderQueue(){
   const q = $('#queue'), ringing = S.calls.filter(c => !c.held);
   $('#queuePanel').classList.toggle('has', S.calls.length > 0);
   $('#qCount').textContent = S.calls.length ? S.calls.length + ' ממתינות' : '';
   const qa = $('#quickAns');
-  if(ringing.length && !CINE && !(compact && view==='call' && !(land && S.active))){ qa.classList.remove('hidden');   // on the calls screen the line list itself is on view qa.classList.toggle('hot', ringing[0].wait > RING_LIMIT*0.6);
+  const pill = compact && view==='call' && !!S.active;      // phone on a call: a slim pill in a free corner of the call instead of the lines panel
+  qa.classList.toggle('pill', pill);
+  const anc = pill ? (land ? $('#call .call-scroll') : $('#callPanel')) : null, ar = anc ? anc.getBoundingClientRect() : null;
+  qa.style.top = ar ? Math.round(ar.top + (land ? 3 : 5)) + 'px' : ''; qa.style.left = ar ? Math.round(ar.left + (land ? 8 : 14)) + 'px' : '';
+  if(ringing.length && !CINE && !(compact && view==='call' && !S.active)){ qa.classList.remove('hidden');   // on the calls screen the line list itself is on view qa.classList.toggle('hot', ringing[0].wait > RING_LIMIT*0.6);
     $('#quickTxt').textContent = 'קו ' + ringing[0].line + ' מצלצל' + (ringing.length > 1 ? ' ועוד ' + (ringing.length-1) : ''); }
   else qa.classList.add('hidden');
-  if(!S.calls.length){ q.innerHTML = '<p class="empty">אין שיחות ממתינות.</p>'; return; }
-  q.innerHTML = S.calls.map((c,i) => {
+  if(!S.calls.length){ patch(q, '<p class="empty">אין שיחות ממתינות.</p>'); return; }
+  patch(q, S.calls.map((c,i) => {
     if(c.held) return `<div class="qrow held"><i class="led"></i><div class="qi"><b>קו ${c.line}</b><span>בהמתנה · ${esc(c.sc.g==='f' ? 'מתקשרת' : 'מתקשר')} על הקו</span></div>
       <button type="button" data-ans="${i}">חזרה לשיחה</button></div>`;
-    const w = Math.floor(c.wait), hot = c.wait > RING_LIMIT*0.6;
-    return `<div class="qrow${hot?' hot':''}"><i class="led"></i><div class="qi"><b>קו ${c.line}</b>
-      <span>ממתין ${w} שניות</span><div class="qbar"><i style="width:${Math.min(100, c.wait/RING_LIMIT*100).toFixed(0)}%"></i></div></div>
+    return `<div class="qrow" data-qi="${i}"><i class="led"></i><div class="qi"><b>קו ${c.line}</b>
+      <span class="qw"></span><div class="qbar"><i></i></div></div>
       <button type="button" data-ans="${i}">מענה</button></div>`;
-  }).join('');
+  }).join(''));
+  q.querySelectorAll('.qrow[data-qi]').forEach(r => { const c = S.calls[+r.dataset.qi]; if(!c) return;
+    r.classList.toggle('hot', c.wait > RING_LIMIT*0.6); r.querySelector('.qw').textContent = 'ממתין ' + Math.floor(c.wait) + ' שניות';
+    r.querySelector('.qbar i').style.width = Math.min(100, c.wait/RING_LIMIT*100).toFixed(0) + '%'; });
 }
 $('#queue').addEventListener('click', e => { const b = e.target.closest('[data-ans]'); if(b) answer(+b.dataset.ans); });
 $('#quickAns').addEventListener('click', quickAnswer);
@@ -2247,24 +2391,28 @@ function renderCall(){
   const c = S.active, box = $('#call');
   $('#game').classList.toggle('busy', !!c);
   $('#callLine').textContent = (c ? 'קו ' + c.line + ' · ' : '') + (S.op.g==='f' ? 'מוקדנית ' : 'מוקדן ') + S.op.name;
-  if(!c){ $('#askPanel').classList.add('hidden'); box.innerHTML = '<div class="idle"><video class="idlevid" src="op-' + S.op.g + (compact && !land ? '-v' : '') + '.mp4" autoplay muted loop playsinline></video><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><b>המוקד מאזין</b><span>כשקו מצלצל, לוחצים על ״מענה״</span></div>'; return; }
+  if(!c){ $('#askPanel').classList.add('hidden'); box._cid = null; patch(box, '<div class="idle"><video class="idlevid" src="op-' + S.op.g + (compact && !land ? '-v' : '') + '.mp4" autoplay muted loop playsinline></video><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><b>המוקד מאזין</b><span>כשקו מצלצל, לוחצים על ״מענה״</span></div>'); return; }
   const names = {caller:'מתקשר', op:esc(S.op.name), fx:''};
   const tr = c.lines.map(l => `<div class="ln ${l.who}"><b>${names[l.who]}</b><span class="tx">${esc(l.text)}</span><time>${(l.ts||'').slice(3)}</time></div>`).join('');
   const exact = c.rev.addr && !c.sc.a, sent = !!(c.inc && S.incs.includes(c.inc));
   const t = tabList(c), nq = t.all.filter(q => !q.ins).length, ni = t.all.length - nq;
-  const qhtml = `<div class="tabs"><button type="button" data-tab="q" aria-pressed="${c.tab!=='i'}">שאלות<i>${nq}</i></button><button type="button" class="i" data-tab="i" aria-pressed="${c.tab==='i'}">הנחיות למתקשר<i>${ni}</i></button></div>
+  const qhtml = `<div class="tabs"><button type="button" data-tab="q" aria-pressed="${c.tab!=='i'}">שאלות<i>${nq}</i></button><button type="button" class="i" data-tab="i" aria-pressed="${c.tab==='i'}">הנחיות<span class="xl"> למתקשר</span><i>${ni}</i></button></div>
       <div class="qs ${c.tab==='i'?'ins':''}">${t.list.length ? t.list.map((q,i) => `<button type="button" data-ask="${q.id}" class="${q.follow?'new':''}"><kbd>${i+1}</kbd><span>${esc(q.q)}</span></button>`).join('') : `<p class="empty">${c.tab==='i' ? 'אין הנחיות נוספות.' : 'אין שאלות נוספות.'}</p>`}</div>`;
   const wideQs = !compact;                                   // on a computer the questions sit in a wide strip under the map
-  $('#askPanel').classList.toggle('hidden', !wideQs); if(wideQs) $('#askBody').innerHTML = qhtml;
-  const keep = box.querySelector('.call-scroll'), top = keep ? keep.scrollTop : 0, ch = box.querySelector('.chips'), chx = ch ? ch.scrollLeft : 0, ft = box.querySelector('.call-foot'), fty = ft ? ft.scrollTop : 0;
-  box.innerHTML = `<div class="call-scroll">
-      <div class="callmeta"><span class="rec">מוקלט <span id="callTimer">${callDur(c)}</span></span><span>אירוע ${c.no}</span><span dir="ltr">${c.phone}</span></div>
-      <div class="loc ${exact?'ok':'warn'}"><span>${exact ? 'כתובת מאומתת' : 'איכון משוער'}</span><b>${esc(exact ? addrText(c) : stName(c.st) + ', ' + c.hood)}</b></div>
-      <div class="transcript" id="tr">${tr}${c.q.length ? '<span class="cursor"></span>' : ''}</div>
-      ${wideQs ? '' : qhtml}
-    </div>
-    <div class="call-foot">
-      <div class="exts">${Object.keys(EXT).map(k => `<button type="button" data-ext="${k}" aria-pressed="${sent ? c.inc.crews.includes(k) : !!c.ext[k]}"><b>${k}</b>${EXT[k].crew}</button>`).join('')}</div>
+  $('#askPanel').classList.toggle('hidden', !wideQs); if(wideQs) patch($('#askBody'), qhtml);
+  if(box._cid !== c){                                        // a new call: build the frame once
+    box.innerHTML = '<div class="call-scroll"><div class="callmeta"></div><div class="loc"></div><div class="transcript" id="tr"></div><div class="qwrap"></div></div><div class="call-foot"></div>';
+    box._h = null; box._cid = c;
+  }
+  const P = sel => box.querySelector(sel);
+  if(patch(P('.callmeta'), `<span class="rec">מוקלט <span id="callTimer"></span></span><span>אירוע ${c.no}</span><span dir="ltr">${c.phone}</span>`)) P('#callTimer').textContent = callDur(c);
+  P('.loc').className = 'loc ' + (exact ? 'ok' : 'warn');
+  patch(P('.loc'), `<span>${exact ? 'כתובת מאומתת' : 'איכון משוער'}</span><b>${esc(exact ? addrText(c) : stName(c.st) + ', ' + c.hood)}</b>`);
+  const trEl = P('#tr'); if(patch(trEl, tr + (c.q.length ? '<span class="cursor"></span>' : ''))) trEl.scrollTop = trEl.scrollHeight;
+  patch(P('.qwrap'), wideQs ? '' : qhtml);
+  const ch = box.querySelector('.chips'), chx = ch ? ch.scrollLeft : 0, ft = P('.call-foot'), fty = ft.scrollTop;
+  if(patch(ft, `
+      <div class="exts">${Object.keys(EXT).map(k => `<button type="button" data-ext="${k}" aria-pressed="${sent ? c.inc.crews.includes(k) : !!c.ext[k]}"><b>${k}</b><span class="xl">${EXT[k].crew}</span><span class="xs">${EXT[k].ask==='צוות עירייה' ? 'עירייה' : EXT[k].ask}</span></button>`).join('')}</div>
       <div class="chips-label"><span>${sent ? 'כוחות לתגבור' : 'בחירת כוחות'}</span><span>${S.units.filter(u => u.sel).length ? S.units.filter(u => u.sel).length + ' נבחרו' : S.units.filter(u => u.state==='free').length + ' זמינים'}</span></div>
       <div class="chips">${S.units.map((u,i) => `<button type="button" class="chip ${u.state}" data-uc="${i}" aria-pressed="${u.sel}" ${u.state!=='free'?'disabled':''}><b>${u.cs}</b><span>${{free:'זמין', enroute:'בדרך', scene:'בזירה', gone:'לא זמין'}[u.state]}</span></button>`).join('')}</div>
       <div class="dec"><button type="button" class="u" data-act="u">${sent ? 'תגבור מבצעי' : 'שיגור מבצעי'}</button><button type="button" class="r" data-act="r">${sent ? 'תגבור רגיל' : 'שיגור רגיל'}</button></div>
@@ -2276,13 +2424,9 @@ function renderCall(){
         <button type="button" data-act="x" title="ניתוק שיחת סרק"><b>ניתוק</b><span>סרק</span></button>
         <button type="button" class="ref" data-act="ref" title="הפניה לתחנה: הגשת תלונה או מסירת מציאה"><b>לתחנה</b><span>תלונה</span></button>
       </div>
-      <button type="button" class="dupcall" data-act="dup" title="מתקשר נוסף על אירוע שכבר נשלחו אליו כוחות">האירוע מוכר · כוחות בדרך</button>
-      <button type="button" class="endcall${extList(c).length ? ' send' : ''}" data-act="endno" ${c.ending?'disabled':''}>${extList(c).length ? 'שליחת ' + extList(c).map(k => EXT[k].n).join(' ו') + ' וסיום שיחה, בלי ניידת' : 'סיום שיחה, בלי ניידת'}</button>`}
-      <p class="hint" role="status">${esc(c.hint||'')}</p>
-    </div>`;
-  const sc2 = box.querySelector('.call-scroll'); if(sc2) sc2.scrollTop = top;
-  const ch2 = box.querySelector('.chips'); if(ch2) ch2.scrollLeft = chx; const ft2 = box.querySelector('.call-foot'); if(ft2) ft2.scrollTop = fty;
-  const el = $('#tr'); if(el) el.scrollTop = el.scrollHeight;
+      <div class="endrow"><button type="button" class="dupcall" data-act="dup" title="מתקשר נוסף על אירוע שכבר נשלחו אליו כוחות">האירוע מוכר<span class="lg"> · כוחות בדרך</span></button>
+      <button type="button" class="endcall${extList(c).length ? ' send' : ''}" data-act="endno" ${c.ending?'disabled':''}>${extList(c).length ? 'שליחת ' + extList(c).map(k => EXT[k].n).join(' ו') + ' וסיום שיחה, בלי ניידת' : 'סיום שיחה, בלי ניידת'}</button></div>`}
+      <p class="hint" role="status">${esc(c.hint||'')}</p>`)) { const ch2 = box.querySelector('.chips'); if(ch2) ch2.scrollLeft = chx; ft.scrollTop = fty; }
 }
 document.addEventListener('keydown', e => {          // number keys ask the matching question
   if(!S || S.over || !S.active || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -2319,14 +2463,14 @@ renderUnitPick();
 function renderIncs(){
   const box = $('#incs'); if(!box) return;
   $('#incCount').textContent = S.incs.length ? S.incs.length + ' פתוחים' : '';
-  if(!S.incs.length){ box.innerHTML = '<p class="empty">אין אירועים פתוחים.</p>'; return; }
-  box.innerHTML = S.incs.map((inc,i) => {
+  if(!S.incs.length){ patch(box, '<p class="empty">אין אירועים פתוחים.</p>'); return; }
+  patch(box, S.incs.map((inc,i) => {
     const st = inc.arrivedAt==null ? 'כוחות בדרך' : 'כוחות בזירה', want = (inc.missing||[]).filter(k => !inc.crews.includes(k));
     return `<div class="irow${want.length?' want':''}"><div class="ii"><b>${esc(inc.sc.t)}</b>
       <span>${esc(inc.c.hood)} · ${st} · ${inc.units.map(u => `<button type="button" class="iu" data-iu="${S.units.indexOf(u)}" title="פרטי הצוות${inc.units.length > 1 ? ' ושחרור מהאירוע' : ''}">${esc(u.cs)}</button>`).join(' ')}${want.length ? ' · <em>הכוח מבקש ' + want.map(k => EXT[k].crew).join(' ו') + '</em>' : ''}</span></div>
       <div class="ib">${Object.keys(EXT).map(k => `<button type="button" data-ic="${i}:${k}" aria-pressed="${inc.crews.includes(k)}" title="${EXT[k].crew}">${k}</button>`).join('')}
       <button type="button" class="rf" data-ir="${i}">תגבור</button></div></div>`;
-  }).join('');
+  }).join(''));
 }
 $('#incs').addEventListener('click', e => {
   const iu = e.target.closest('[data-iu]'); if(iu){ unitCard(S.units[+iu.dataset.iu]); return; }
@@ -2341,10 +2485,10 @@ $('#incs').addEventListener('click', e => {
 function renderUnits(){
   if(S && S.active && compact && !renderUnits.busy){ renderUnits.busy = true; try{ renderCall(); }finally{ renderUnits.busy = false; } }
   const lab = {free:'זמין', enroute:'בדרך', scene:'בזירה', gone:'חזר לבסיס'};
-  $('#units').innerHTML = S.units.map((u,i) =>
+  patch($('#units'), S.units.map((u,i) =>
     `<button type="button" class="unit ${u.state}${u.state!=='free'?' busy':''}" data-u="${i}" aria-pressed="${u.sel}">
       ${UICON[u.kind]}<span class="cs">${u.cs}</span><span class="ty">${u.type} · ${esc(u.state!=='free' && u.inc ? u.inc.c.hood : S.nodes[u.node].n)}</span>
-      <span class="stx">${lab[u.state]}${u.state==='enroute' && u.urgent ? ' מבצעי' : ''}</span><i class="inf" data-info="${i}" title="פרטי הצוות">i</i></button>`).join('');
+      <span class="stx">${lab[u.state]}${u.state==='enroute' && u.urgent ? ' מבצעי' : ''}</span><i class="inf" data-info="${i}" title="פרטי הצוות">i</i></button>`).join(''));
   const n = S.units.filter(u => u.sel).length;
   $('#selCount').textContent = n ? n + ' מסומנים' : S.units.filter(u => u.state==='free').length + ' זמינים';
 }
@@ -2860,9 +3004,9 @@ function drawCine(c){
 
 /* ================= END ================= */
 function gradeOf(a){ return a==null ? ['–','לא טופלו אירועים במשמרת'] : a>=90 ? ['מצטיין','אפשר לסמוך עליך בלילה עמוס'] : a>=80 ? ['טוב מאוד','משמרת יציבה, עוד קצת דיוק'] : a>=70 ? ['טוב','הסיווג טוב, אפשר לאסוף יותר מידע'] : a>=55 ? ['מספיק','שואלים יותר ושולחים מדויק יותר'] : ['נכשל','כדאי לחזור על הנהלים ולנסות שוב']; }
-function endShift(){ unitCard(null); $('#crewReq').classList.add('hidden'); $('#bcBox').classList.add('hidden'); CREW_INC = null;
+function endShift(){ $('#alertFrame').classList.add('hidden'); unitCard(null); $('#crewReq').classList.add('hidden'); $('#bcBox').classList.add('hidden'); CREW_INC = null;
   if(CINE){ CINE.done = null; endCine(); }
-  S.over = true; cancelAnimationFrame(raf); hush(); ambience(false); keepAwake(false); $('#quickAns').classList.add('hidden');
+  S.over = true; cancelAnimationFrame(raf); A.bcOn = false; radioClear(); hush(); ambience(false); keepAwake(false); $('#quickAns').classList.add('hidden');
   const a = avg(), n = S.rec.length, g = gradeOf(a);
   let up = '';                                              // a good shift marks the level as passed on this phone
   if(a != null && a >= 70 && n >= 3 && !lvPassed.includes(S.lv)){
@@ -2892,8 +3036,8 @@ function setPause(on){
   $('#pauseBox').classList.toggle('hidden', !on);
   $('#btnPause').setAttribute('aria-pressed', String(on)); $('#btnPause').innerHTML = on ? '▶<span class="lbl"> המשך</span>' : '⏸<span class="lbl"> השהיה</span>';
   document.querySelectorAll('#cine video, video.opvid').forEach(v => { try{ on ? v.pause() : v.play().catch(() => {}); }catch(e){} });
-  if(on){ hush(); try{ A.ctx && A.ctx.suspend(); }catch(e){} keepAwake(false); }
-  else { try{ A.ctx && A.ctx.resume(); }catch(e){} if(S && !S.over) keepAwake(true); lastT = performance.now(); }
+  if(on){ hush(); try{ if(A.bcOn && window.speechSynthesis) speechSynthesis.pause(); }catch(e){} try{ A.ctx && A.ctx.suspend(); }catch(e){} keepAwake(false); }
+  else { try{ if(window.speechSynthesis && speechSynthesis.paused) speechSynthesis.resume(); }catch(e){} try{ A.ctx && A.ctx.resume(); }catch(e){} if(S && !S.over) keepAwake(true); lastT = performance.now(); }
 }
 $('#btnPause').addEventListener('click', () => setPause(!(S && S.paused)));
 $('#btnResume').addEventListener('click', () => { initAudio(); setPause(false); });
