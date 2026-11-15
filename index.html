@@ -579,7 +579,7 @@ html.compact-mode #quickAns span{flex:1}
         <button type="button" class="ghost" id="btnVoiceTest">השמעת דוגמה</button>
       </div>
       <p class="voice-note" id="voiceNote"></p>
-      <p class="voice-note" id="buildTag" style="opacity:.6">גרסה 15.11 · 15:15</p>
+      <p class="voice-note" id="buildTag" style="opacity:.6">גרסה 15.11 · 15:25</p>
     </section>
 
     <button class="go" id="btnStart">כניסה למשמרת</button>
@@ -1387,7 +1387,11 @@ function spoken(text, radio){
 }
 function say(text, o){
   o = o || {};
+  if(A.voice && !A.he && window.speechSynthesis) loadVoices();   // Safari fills its voice list late: look again before giving up
   if(!A.voice || !A.he || !window.speechSynthesis) return;
+  const since = Date.now() - (A.hushAt || 0);
+  if(since < 140){ setTimeout(() => say(text, o), 140 - since); return; }   // Safari drops a line spoken right after a cancel
+  try{ if(speechSynthesis.paused) speechSynthesis.resume(); }catch(e){}
   if(text.charAt(0) === '(') return;                       // stage directions are not spoken
   try{
     if(!o.force && (speechSynthesis.speaking || speechSynthesis.pending)) return;
@@ -1411,7 +1415,7 @@ function say(text, o){
     });
   }catch(e){}
 }
-function hush(){ try{ if(window.speechSynthesis) speechSynthesis.cancel(); }catch(e){} A.pend = 0; bedStop(true); }
+function hush(){ try{ if(window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)){ speechSynthesis.cancel(); A.hushAt = Date.now(); } }catch(e){} A.pend = 0; bedStop(true); }
 
 // Quiet office noise under the whole shift, so the room feels staffed.
 let amb = null, ambWant = false;
@@ -2706,6 +2710,7 @@ try{ if('serviceWorker' in navigator && location.protocol==='https:' && window.t
 }catch(e){}
 try{ document.fonts.ready.then(() => { mapLayer = null; }); }catch(e){}
 try{ if(window.speechSynthesis) speechSynthesis.onvoiceschanged = loadVoices; }catch(e){}
+[400, 1200, 3000].forEach(ms => setTimeout(() => { if(!A.he) loadVoices(); }, ms));   // and in case the browser never says the list changed
 </script>
 </body>
 </html>
