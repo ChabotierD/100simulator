@@ -704,7 +704,7 @@ html.compact-mode.land-mode #bcBox p{-webkit-line-clamp:2}
       <p class="voice-note" id="upNote"></p>
       <p class="voice-note" id="voiceNote"></p>
       <p class="voice-note" id="sndCheck" style="color:#ffd58a"></p>
-      <p class="voice-note" id="buildTag" style="opacity:.85;font-weight:700">גרסה 17.11 · 01:30</p>
+      <p class="voice-note" id="buildTag" style="opacity:.85;font-weight:700">גרסה 17.11 · 02:30</p>
     </section>
 
     <button class="go" id="btnStart">כניסה למשמרת</button>
@@ -2406,7 +2406,18 @@ function log(cls, who, text, score){
 /* ================= RENDER ================= */
 // Writes HTML into an element only when it changed. On a phone, replacing a button between the finger going down and up
 // swallows the tap, so the screens are never rebuilt just because a timer ticked.
-function patch(el, html){ if(el && el._h !== html){ el.innerHTML = html; el._h = html; return true; } return false; }
+// While a finger (or mouse button) is down nothing is rebuilt at all; the changes wait for the release and the click.
+let touching = false; const pendEls = new Set();
+document.addEventListener('pointerdown', () => { touching = true; }, true);
+const releaseTouch = () => setTimeout(() => { touching = false; pendEls.forEach(el => { const h = el._pend; el._pend = null; if(h != null) patch(el, h); }); pendEls.clear(); }, 80);
+document.addEventListener('pointerup', releaseTouch, true); document.addEventListener('pointercancel', releaseTouch, true);
+function patch(el, html){
+  if(!el || el._h === html){ if(el) el._pend = null; return false; }
+  if(touching){ el._pend = html; pendEls.add(el); return false; }
+  el.innerHTML = html; el._h = html; return true;
+}
+// After a tap or a mouse click the button lets go of the keyboard focus, so Space answers the next line instead of pressing it again.
+document.addEventListener('click', e => { if(e.detail > 0){ const b = e.target.closest('#game button, #unitCard button, #crewReq button'); if(b) setTimeout(() => b.blur(), 0); } }, true);
 function renderQueue(){
   const q = $('#queue'), ringing = S.calls.filter(c => !c.held);
   $('#queuePanel').classList.toggle('has', S.calls.length > 0);
@@ -2564,11 +2575,11 @@ function unitCard(u){
   const ev = c ? `<div class="ev"><span class="no">אירוע ${c.no}</span> · ${esc(c.sc.t)}<br>${esc(addrText(c))}${eta ? '<br>הגעה משוערת בעוד ' + eta + ' שניות' + (u.urgent ? ' · נסיעה מבצעית' : '') : ''}${inc.units.length > 1 ? '<br>יחד עם ' + inc.units.filter(x => x!==u).map(x => esc(x.cs)).join(', ') : ''}</div>`
     : u.state==='gone' ? `<div class="ev none">המסוק סיים את המשימה שלו במשמרת הזאת וחזר לבסיס.</div>` : `<div class="ev none">פנוי לשיגור · ${esc(where)}${u.air ? '<br>אפשר לשלוח אותו לאירוע אחד בלבד במשמרת.' : ''}</div>`;
   $('#ucBox').classList.toggle('still', again);
-  $('#ucBox').innerHTML = (u.state==='enroute' && u.urgent ? '<div class="bar"></div>' : '') + `<div class="uch">${UICON[u.kind]}<div><b>${esc(u.cs)}</b><div class="t">${esc(u.type)} · ${esc(S.city.radio)}</div></div><span class="stx ${u.state}">${lab[u.state]}</span></div>
+  patch($('#ucBox'), (u.state==='enroute' && u.urgent ? '<div class="bar"></div>' : '') + `<div class="uch">${UICON[u.kind]}<div><b>${esc(u.cs)}</b><div class="t">${esc(u.type)} · ${esc(S.city.radio)}</div></div><span class="stx ${u.state}">${lab[u.state]}</span></div>
     <div class="ucb"><h4>צוות</h4><div class="crew">${u.crew.map(m => `<div><span class="av"${m.face ? ` style="background-image:url(img/crew/p${String(m.face).padStart(2,'0')}.jpg)"` : ''}>${m.face ? '' : esc(m.name.charAt(0))}</span><span class="rk">${m.rank}</span><span>${esc(m.name)}</span><span class="role">${esc(m.role)}</span></div>`).join('')}</div>
     <h4>משימה</h4>${ev}
     <div class="uca">${u.state==='free' ? `<button type="button" class="pri" data-ucsel>${u.sel ? 'בטל סימון' : 'סמן לשיגור'}</button>` : ''}${canRelease(u) ? `<button type="button" class="rel" data-ucrel>שחרור מהאירוע</button>` : ''}<button type="button" data-ucx>סגור</button></div>
-    ${u.inc && !canRelease(u) && u.inc.units.length===1 ? '<p class="ucnote">כוח יחיד באירוע. אי אפשר לשחרר אותו לפני סיום הטיפול.</p>' : ''}</div>`;
+    ${u.inc && !canRelease(u) && u.inc.units.length===1 ? '<p class="ucnote">כוח יחיד באירוע. אי אפשר לשחרר אותו לפני סיום הטיפול.</p>' : ''}</div>`);
   $('#unitCard').classList.remove('hidden');
 }
 function pathLen(u){ let d = 0, x = u.x, y = u.y; for(const p of u.path){ d += Math.hypot(p.x-x, p.y-y); x = p.x; y = p.y; } return d; }
